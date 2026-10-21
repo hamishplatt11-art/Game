@@ -1,0 +1,15 @@
+import { chromium } from 'playwright-core';
+import { startServer } from './server.mjs';
+import fs from 'node:fs';
+const exe = fs.readdirSync('/opt/pw-browsers').map((d) => `/opt/pw-browsers/${d}/chrome-linux/chrome`).find((p) => fs.existsSync(p));
+process.chdir('/home/user/Game');
+const server = await startServer(5194);
+const browser = await chromium.launch({ executablePath: exe, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const page = await browser.newPage({ viewport: { width: 1440, height: 810 } });
+await page.goto(server.url);
+await page.waitForSelector('.main-nav', { timeout: 60000 });
+await page.click('[data-go="builder"]');
+await page.waitForTimeout(9000);
+await page.screenshot({ path: '/home/user/Game/tests/browser/out/f-builder.png', timeout: 120000 });
+await browser.close();
+await server.close();
