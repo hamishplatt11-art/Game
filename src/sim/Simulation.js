@@ -393,6 +393,11 @@ export class Simulation {
       catchAndShoot: type === 'catchShoot',
       drift: type === 'fadeaway' ? -1.0 : type === 'stepbackJ' ? -0.3 : 0,
     };
+    {
+      // Uncontested release window, shown on the shot meter while the shot rises.
+      const rk0 = shotRatingKey(type === 'ft' ? 'ft' : 'jumper', distToHoop(p.x, p.z, hoop), type !== 'ft' && isThreePoint(p.x, p.z, hoop));
+      data.window = releaseWindow(p, type === 'ft' ? 'ft' : 'jumper', rk0, 0, this.diff, data.catchAndShoot);
+    }
     if (!user) {
       // CPU release timing error depends on rating and difficulty.
       const rk = shotRatingKey(type === 'ft' ? 'ft' : 'jumper', distToHoop(p.x, p.z, hoop), isThreePoint(p.x, p.z, hoop));
