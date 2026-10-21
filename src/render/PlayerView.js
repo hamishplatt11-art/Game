@@ -70,7 +70,14 @@ export class PlayerView {
     const rx = -fz, rz = fx;
     const fwd = p.vx * fx + p.vz * fz;
     const right = p.vx * rx + p.vz * rz;
-    const s = p.speed;
+    // Turning in place steps the feet instead of pivoting on frozen feet.
+    let dFace = p.facing - (this.lastFacing ?? p.facing);
+    while (dFace > Math.PI) dFace -= Math.PI * 2;
+    while (dFace < -Math.PI) dFace += Math.PI * 2;
+    this.lastFacing = p.facing;
+    const turnRate = dt > 0 ? Math.abs(dFace) / dt : 0;
+    this.turnStep = (this.turnStep || 0) + (Math.min(1.4, turnRate * 0.35) - (this.turnStep || 0)) * Math.min(1, dt * 10);
+    const s = Math.max(p.speed, p.speed < 0.5 ? this.turnStep : 0);
     const stance = p.intent.stance && !hasBall;
 
     let gaitClip = null;

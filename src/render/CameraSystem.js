@@ -128,8 +128,10 @@ export class CameraSystem {
     } else if (cin.kind === 'preview') {
       const a = 0.3 + cin.t * 0.25;
       const h = cin.height || 2;
-      c.position.set(Math.sin(a) * 4.2, h * 0.6 + 0.4, Math.cos(a) * 4.2);
-      c.lookAt(0, h * 0.5, 0);
+      c.position.set(Math.sin(a) * 4.4, h * 0.6 + 0.4, Math.cos(a) * 4.4);
+      // Frame the player on the right third of the screen (menus sit on the left).
+      const rx = Math.cos(a), rz = -Math.sin(a);
+      c.lookAt(-rx * 1.5, h * 0.5, -rz * 1.5);
       if (c.fov !== 38) { c.fov = 38; c.updateProjectionMatrix(); }
     } else if (cin.kind === 'replay') {
       // Low orbit around the highlight player toward the rim.

@@ -154,6 +154,12 @@ conventions and has not been verified against NBA 2K27 footage (see
 - HUD: score bug with possession, timeouts and fouls; shot clock; player
   panel with stamina and takeover; shot, dunk and layup meters; contest
   feedback; banners; captions; icon-pass badges; move labels.
+- MyPLAYER builder: name, number, position, height, weight, wingspan, skin
+  tone, hair, facial hair, blueprint (archetype), and 60 skill points across
+  six categories with physique-based caps (size trade-offs). Jumper release
+  speed and arc are adjustable. It has a live 3D preview, is saved locally,
+  and plays in Practice and Blacktop.
+- Three referees (lead, trail, slot) follow the play.
 - Menus: Play Now (teams, uniforms, control side, difficulty, quarter length),
   Blacktop (size, target, scoring, make-it-take-it), Practice (player,
   defender), Settings (graphics, audio, gameplay, camera), key remapping and
@@ -172,11 +178,14 @@ conventions and has not been verified against NBA 2K27 footage (see
 - **Motion-captured animation.** The clip library is hand-keyed and much
   smaller than a AAA library. It has no foot IK planting, motion matching or
   motion warping, and no full cloth simulation.
-- MyCAREER, player creation, Franchise/MyNBA and online multiplayer are not
-  implemented (they are marked "In development" in the menu).
+- MyCAREER (season and career progression), Franchise/MyNBA and online
+  multiplayer are not implemented; they are marked "In development" in the
+  menu. The MyPLAYER builder exists, but its player can only be used in
+  Practice and Blacktop for now.
 - The Pro Stick shot is "hold down, release" only. There is no aiming and no
   tempo tick on the meter.
-- There are no referees on the floor and no bench players rendered.
+- Bench players are not rendered. Referees are on the floor but are visual
+  only; calls come from the rules engine.
 - Commentary is text only (optional browser TTS); there is no recorded commentary.
 - No WebGPU path; the renderer is WebGL2 only.
 - The physics layer is custom code, not Rapier. The ball and body collisions
@@ -281,6 +290,6 @@ tests/                    vitest + Playwright tests
    such as Spain pick-and-roll, floppy and hand-offs.
 5. **Presentation:** referees, bench players, broadcast intros and halftime
    show, and recorded commentary.
-6. **Modes:** MyPLAYER builder, then MyCAREER, then MyNBA. Online play would
+6. **Modes:** MyCAREER on top of the MyPLAYER builder, then MyNBA. Online play would
    need server-authoritative simulation; the headless deterministic simulation
    is designed to make this possible.
