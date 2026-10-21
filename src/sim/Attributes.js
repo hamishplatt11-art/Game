@@ -89,6 +89,12 @@ export function buildPlayerDef(raw, teamId) {
   ratings.agility -= hDelta * 2.5;
   ratings.block += (raw.ws - raw.h) * 0.6;
   ratings.steal += (raw.ws - raw.h) * 0.3;
+  // Custom builds: category points plus physique caps (trade-offs for size).
+  if (raw.custom) {
+    for (const [cat, pts] of Object.entries(raw.custom)) for (const a of CATEGORY_ATTRS[cat] || []) ratings[a] += pts;
+    const caps = physiqueCaps(raw.h, raw.w, raw.ws);
+    for (const a of ATTRS) if (caps[a] !== undefined) ratings[a] = Math.min(ratings[a], caps[a]);
+  }
   for (const a of ATTRS) ratings[a] = Math.round(clamp(ratings[a], 25, 99));
 
   const badges = {};
@@ -98,7 +104,7 @@ export function buildPlayerDef(raw, teamId) {
   }
   const tend = { ...(TENDENCIES[raw.arch] || TENDENCIES.twoWay) };
   // Shooting style: release speed and the arc of the jumper.
-  const jumper = {
+  const jumper = raw.jumper ? { ...raw.jumper } : {
     speed: clamp(0.92 + (ratings.threeShot - 75) * 0.004 + rng.range(-0.04, 0.04), 0.85, 1.12),
     arc: clamp(50 + rng.range(-3, 4), 46, 56),
     setPoint: rng.range(0.9, 1.1),
@@ -119,10 +125,37 @@ export function buildPlayerDef(raw, teamId) {
     hair: raw.hair || 'short',
     beard: raw.beard || 'none',
     acc: raw.acc || [],
+    my: !!raw.my,
     ratings,
     badges,
     tend,
     jumper,
+  };
+}
+
+export const CATEGORY_ATTRS = {
+  shooting: ['closeShot', 'midShot', 'threeShot', 'freeThrow'],
+  finishing: ['layup', 'drivingDunk', 'standingDunk', 'postControl'],
+  playmaking: ['ballHandle', 'speedWithBall', 'passAccuracy', 'passVision', 'passIQ'],
+  defense: ['interiorD', 'perimeterD', 'steal', 'block', 'defAwareness', 'helpD'],
+  rebounding: ['offReb', 'defReb'],
+  physicals: ['speed', 'accel', 'agility', 'strength', 'vertical', 'stamina'],
+};
+export const BUILD_POINTS = 60;
+
+/** Maximum ratings a body can reach: size helps inside and hurts handle/speed. */
+export function physiqueCaps(hCm, wKg, wsCm) {
+  const tall = (hCm - 200) / 10;
+  const heavy = (wKg - 100) / 10;
+  const reach = (wsCm - hCm) / 10;
+  const c = (v) => Math.round(clamp(v, 40, 99));
+  return {
+    ballHandle: c(92 - tall * 9 - heavy * 2), speedWithBall: c(92 - tall * 9 - heavy * 3), speed: c(95 - tall * 8 - heavy * 4),
+    accel: c(95 - tall * 8 - heavy * 4), agility: c(94 - tall * 9 - heavy * 3), threeShot: c(95 - Math.max(0, tall) * 6 + reach * -3),
+    midShot: c(96 - Math.max(0, tall) * 3), drivingDunk: c(70 + tall * 8 + reach * 5), standingDunk: c(60 + tall * 12 + heavy * 3),
+    block: c(55 + tall * 12 + reach * 10), interiorD: c(65 + tall * 10 + heavy * 4), perimeterD: c(92 - Math.max(0, tall) * 6 + reach * 4),
+    offReb: c(60 + tall * 10 + heavy * 3), defReb: c(65 + tall * 10 + heavy * 3), strength: c(65 + heavy * 9 + tall * 3), vertical: c(95 - heavy * 6 - Math.max(0, tall) * 3),
+    postControl: c(60 + tall * 8 + heavy * 5),
   };
 }
 

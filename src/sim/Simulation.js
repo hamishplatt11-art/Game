@@ -73,13 +73,14 @@ export class Simulation {
     const lineup = [];
     if (this.n === 5) {
       for (const pos of order) {
-        const p = team.roster.find((q) => q.pos === pos && !used.has(q)) || team.roster.find((q) => !used.has(q));
+        const my = team.roster.find((q) => q.def.my && q.pos === pos && !used.has(q));
+        const p = my || team.roster.find((q) => q.pos === pos && !used.has(q)) || team.roster.find((q) => !used.has(q));
         used.add(p);
         lineup.push(p);
       }
     } else {
       // Small-sided: best overall players.
-      const sorted = [...team.roster].sort((a, b) => b.def.ovr - a.def.ovr);
+      const sorted = [...team.roster].sort((a, b) => (b.def.my - a.def.my) || (b.def.ovr - a.def.ovr));
       for (let i = 0; i < this.n; i++) lineup.push(sorted[i]);
     }
     lineup.forEach((p, i) => { p.onCourt = true; p.slot = i; p.starter = true; });

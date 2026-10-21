@@ -24,6 +24,7 @@ await page.evaluate(() => {
 }).catch((e) => console.log('EVAL ERR', e));
 await page.waitForSelector('.pregame', { timeout: 240000 }).catch((e) => { console.log('ERRS', errs); throw e; });
 await page.keyboard.press('Enter');
+await page.waitForFunction(() => window.__app.game && window.__app.game.running && window.__app.game.sim.match.phase !== 'pregame', null, { timeout: 60000 });
 const snap = async (name, cond, cam) => {
   await page.evaluate(({ cond, cam }) => {
     const g = window.__app.game;

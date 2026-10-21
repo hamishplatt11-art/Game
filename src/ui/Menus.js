@@ -1,7 +1,7 @@
 // Front-end menus: main menu, mode setup screens, settings (graphics, audio,
 // gameplay, camera, key remapping) and a live controller test.
 import { DIFFICULTY } from '../sim/Shooting.js';
-import { buildPlayerDef, BADGES, BADGE_TIERS } from '../sim/Attributes.js';
+import { buildPlayerDef, BADGES, BADGE_TIERS, CATEGORY_ATTRS, BUILD_POINTS, physiqueCaps } from '../sim/Attributes.js';
 import { ACTIONS, PAD } from '../input/InputManager.js';
 import { CAMERA_MODES, CAMERA_LABELS } from '../render/CameraSystem.js';
 import { fmtHeight } from './HUD.js';
@@ -41,6 +41,7 @@ export class Menus {
         <button data-go="playnow" class="big"><b>PLAY NOW</b><span>Full 5-on-5 game · pick teams, uniforms, difficulty</span></button>
         <button data-go="blacktop" class="big"><b>BLACKTOP</b><span>1v1 – 5v5 streetball, game to 11/15/21</span></button>
         <button data-go="practice" class="big"><b>PRACTICE</b><span>Shot timing, dribble combos, finishing</span></button>
+        <button data-go="builder" class="big"><b>MyPLAYER BUILDER</b><span>Create a player (size, skills, jumper) · use him in Practice &amp; Blacktop</span></button>
         <button class="big locked" disabled><b>MyCAREER</b><span>In development — not playable yet</span></button>
         <button class="big locked" disabled><b>FRANCHISE</b><span>In development — not playable yet</span></button>
         <button class="big locked" disabled><b>ONLINE</b><span>Not implemented (no networking yet)</span></button>
@@ -60,6 +61,7 @@ export class Menus {
       if (go === 'playnow') this.playNowSetup();
       if (go === 'blacktop') this.blacktopSetup();
       if (go === 'practice') this.practiceSetup();
+      if (go === 'builder') this.playerBuilder();
       if (go === 'settings') this.settingsScreen();
       if (go === 'controls') this.controlsScreen();
       if (go === 'about') this.about();
@@ -125,7 +127,7 @@ export class Menus {
   }
 
   blacktopSetup() {
-    const cfg = this.btCfg || (this.btCfg = { home: 2, away: 5, size: 3, target: 21, ones: false, makeItTakeIt: false, control: 'home', difficulty: this.app.settings.data.difficulty });
+    const cfg = this.btCfg || (this.btCfg = { home: 2, away: 5, size: 3, target: 21, ones: false, makeItTakeIt: false, control: 'home', difficulty: this.app.settings.data.difficulty, my: !!this.myPlayerRaw() });
     const render = () => {
       const opts = (name, list, cur) => list.map(([v, l]) => `<button class="opt ${String(cur) === String(v) ? 'on' : ''}" data-opt="${name}" data-v="${v}">${l}</button>`).join('');
       const s = this.screen(`
@@ -139,6 +141,7 @@ export class Menus {
           <div><label>Make it, take it</label>${opts('makeItTakeIt', [['true', 'On'], ['false', 'Off']], String(cfg.makeItTakeIt))}</div>
           <div><label>You control</label>${opts('control', [['away', this.teams[cfg.away].abbr], ['home', this.teams[cfg.home].abbr], ['cpu', 'CPU vs CPU']], cfg.control)}</div>
           <div><label>Difficulty</label>${opts('difficulty', Object.entries(DIFFICULTY).map(([k, d]) => [k, d.name]), cfg.difficulty)}</div>
+          ${this.myPlayerRaw() ? `<div><label>Play as your MyPLAYER</label>${opts('my', [['true', 'Yes'], ['false', 'No']], String(cfg.my))}</div>` : ''}
         </div>
         <div class="row end"><button data-a="back">Back</button><button data-a="start" class="primary">Start</button></div>`, 'setup');
       s.addEventListener('click', (e) => {
@@ -155,8 +158,12 @@ export class Menus {
           render();
         } else if (b.dataset.a === 'back') this.main();
         else if (b.dataset.a === 'start') {
+          let home = this.teams[cfg.home], away = this.teams[cfg.away];
+          if (cfg.my && this.myPlayerRaw()) {
+            if (cfg.control === 'away') away = this.withMyPlayer(away); else home = this.withMyPlayer(home);
+          }
           this.app.startGame({
-            mode: 'blacktop', teams: [this.teams[cfg.home], this.teams[cfg.away]], uniforms: ['home', 'away'], playersPerSide: cfg.size,
+            mode: 'blacktop', teams: [home, away], uniforms: ['home', 'away'], playersPerSide: cfg.size,
             userTeam: cfg.control === 'home' ? 0 : cfg.control === 'away' ? 1 : null, difficulty: cfg.difficulty, quarterMin: 12,
             targetScore: cfg.target, ones: cfg.ones, makeItTakeIt: cfg.makeItTakeIt, winBy2: true,
           });
@@ -166,10 +173,21 @@ export class Menus {
     render();
   }
 
+  myPlayerRaw() {
+    try { return JSON.parse(localStorage.getItem('hw27.myplayer') || 'null'); } catch { return null; }
+  }
+
+  /** A team list with the user's MyPLAYER inserted into the given team. */
+  withMyPlayer(team) {
+    const my = this.myPlayerRaw();
+    if (!my) return team;
+    return { ...team, players: [{ ...my, my: true }, ...team.players.slice(0, team.players.length - 1)] };
+  }
+
   practiceSetup() {
     const cfg = this.prCfg || (this.prCfg = { team: 0, player: 0, defender: false });
     const render = () => {
-      const t = this.teams[cfg.team];
+      const t = cfg.team === 0 && this.myPlayerRaw() ? this.withMyPlayer(this.teams[0]) : this.teams[cfg.team];
       const defs = t.players.map((p) => buildPlayerDef(p, t.id));
       const d = defs[cfg.player];
       const badges = Object.entries(d.badges).map(([b, tier]) => `<span class="badge t${tier}">${esc(BADGES[b].name)} · ${BADGE_TIERS[tier]}</span>`).join('');
@@ -208,6 +226,94 @@ export class Menus {
       });
     };
     render();
+  }
+
+  // -------------------------------------------------------------------------
+  playerBuilder() {
+    const saved = this.myPlayerRaw();
+    const raw = this.builderRaw || (this.builderRaw = saved || {
+      first: 'Rookie', last: 'Prospect', num: 7, pos: 'SG', h: 196, w: 92, ws: 205, arch: 'scoringWing', ovr: 76, skin: 3, hair: 'fade', beard: 'none', acc: [],
+      custom: { shooting: 0, finishing: 0, playmaking: 0, defense: 0, rebounding: 0, physicals: 0 }, jumper: { speed: 1.0, arc: 51, setPoint: 1 },
+    });
+    const ARCH = { sharpshooter: 'Sharpshooter', shooter: 'Shooter', playmaker: 'Playmaker', slasher: 'Slasher', athleticFinisher: 'Athletic Finisher', twoWay: 'Two-Way Wing', allAround: 'All-Around', scoringWing: 'Scoring Wing', stretchBig: 'Stretch Big', playmakingBig: 'Playmaking Big', rimProtector: 'Rim Protector', postScorer: 'Post Scorer', unicorn: 'Unicorn' };
+    const used = () => Object.values(raw.custom).reduce((a, v) => a + v, 0);
+    let previewTimer = null;
+    const preview = () => {
+      clearTimeout(previewTimer);
+      previewTimer = setTimeout(() => this.app.showMenuPreview(buildPlayerDef(raw, 'MYP'), ['#f4f4f4', '#2fd6ff', '#0b2233']), 220);
+    };
+    const render = () => {
+      const def = buildPlayerDef(raw, 'MYP');
+      const R = def.ratings;
+      const caps = physiqueCaps(raw.h, raw.w, raw.ws);
+      const key = [['3PT', 'threeShot'], ['Mid-Range', 'midShot'], ['Layup', 'layup'], ['Driving Dunk', 'drivingDunk'], ['Ball Handle', 'ballHandle'], ['Pass Accuracy', 'passAccuracy'], ['Perimeter D', 'perimeterD'], ['Interior D', 'interiorD'], ['Block', 'block'], ['Steal', 'steal'], ['Def Rebound', 'defReb'], ['Speed', 'speed'], ['Strength', 'strength'], ['Vertical', 'vertical']];
+      const bars = key.map(([l, k]) => `<div class="rbar"><span>${l}</span><i><b style="width:${R[k]}%"></b></i><em>${R[k]}${caps[k] !== undefined ? `<small class="muted">/${caps[k]}</small>` : ''}</em></div>`).join('');
+      const opt = (name, list, cur) => list.map(([v, l]) => `<button class="opt ${String(cur) === String(v) ? 'on' : ''}" data-set="${name}" data-v="${v}">${l}</button>`).join('');
+      const cats = Object.keys(CATEGORY_ATTRS).map((c) => `<div class="cat"><span>${c}</span><button data-pt="${c}" data-d="-5">−</button><b>${raw.custom[c] > 0 ? '+' : ''}${raw.custom[c]}</b><button data-pt="${c}" data-d="5">+</button></div>`).join('');
+      const s = this.screen(`
+        <h1 class="screen-title">MyPLAYER BUILDER</h1>
+        <div class="builder">
+          <section>
+            <div class="row"><input data-in="first" value="${esc(raw.first)}" maxlength="14"><input data-in="last" value="${esc(raw.last)}" maxlength="16"><input data-in="num" type="number" min="0" max="99" value="${raw.num}" style="width:70px"></div>
+            <div><label>Position</label>${opt('pos', ['PG', 'SG', 'SF', 'PF', 'C'].map((p) => [p, p]), raw.pos)}</div>
+            <div class="slider"><label>Height ${fmtHeight(raw.h / 100)}</label><input type="range" min="175" max="226" value="${raw.h}" data-sl="h"><em>${raw.h} cm</em></div>
+            <div class="slider"><label>Weight ${Math.round(raw.w * 2.2046)} lb</label><input type="range" min="70" max="130" value="${raw.w}" data-sl="w"><em>${raw.w} kg</em></div>
+            <div class="slider"><label>Wingspan ${fmtHeight(raw.ws / 100)}</label><input type="range" min="${raw.h - 5}" max="${raw.h + 20}" value="${raw.ws}" data-sl="ws"><em>${raw.ws} cm</em></div>
+            <div><label>Skin tone</label>${opt('skin', [0, 1, 2, 3, 4, 5].map((i) => [i, String(i + 1)]), raw.skin)}</div>
+            <div><label>Hair</label>${opt('hair', ['buzz', 'short', 'fade', 'afro', 'twists', 'braids', 'long', 'bald'].map((h) => [h, h]), raw.hair)}</div>
+            <div><label>Facial hair</label>${opt('beard', ['none', 'stubble', 'short', 'full'].map((h) => [h, h]), raw.beard)}</div>
+          </section>
+          <section>
+            <div><label>Blueprint</label>${opt('arch', Object.entries(ARCH), raw.arch)}</div>
+            <label>Skill points (${BUILD_POINTS - used()} of ${BUILD_POINTS} left)</label><div class="cats">${cats}</div>
+            <div class="slider"><label>Jumper release</label><input type="range" min="0.86" max="1.12" step="0.01" value="${raw.jumper.speed}" data-sl="jspeed"><em>${raw.jumper.speed > 1.04 ? 'Quick' : raw.jumper.speed < 0.94 ? 'Slow' : 'Normal'}</em></div>
+            <div class="slider"><label>Jumper arc</label><input type="range" min="46" max="56" value="${raw.jumper.arc}" data-sl="jarc"><em>${raw.jumper.arc}°</em></div>
+            <p class="muted">Size has trade-offs: taller and heavier builds raise caps for blocks, rebounding and inside scoring but lower caps for handle, speed and three-point shooting (shown as rating/cap).</p>
+          </section>
+          <section><h3>${esc(def.name)} · ${def.pos}</h3><div class="ratings one">${bars}</div>
+            <div class="badges">${Object.entries(def.badges).map(([b, t]) => `<span class="badge t${t}">${esc(BADGES[b].name)} · ${BADGE_TIERS[t]}</span>`).join('')}</div></section>
+        </div>
+        <div class="row end"><button data-a="back">Back</button><button data-a="delete" class="danger" ${saved ? '' : 'disabled'}>Delete</button><button data-a="save" class="primary">Save MyPLAYER</button><button data-a="practice">Save &amp; Practice</button></div>`, 'setup builder-screen');
+      s.addEventListener('click', (e) => {
+        const b = e.target.closest('button');
+        if (!b) return;
+        if (b.dataset.set) {
+          const k = b.dataset.set, v = b.dataset.v;
+          raw[k] = k === 'skin' ? Number(v) : v;
+          render(); preview();
+        } else if (b.dataset.pt) {
+          const c = b.dataset.pt, d = Number(b.dataset.d);
+          const nv = Math.max(-10, Math.min(20, raw.custom[c] + d));
+          if (used() - raw.custom[c] + nv <= BUILD_POINTS) raw.custom[c] = nv;
+          render();
+        } else if (b.dataset.a === 'back') { this.app.hideMenuPreview(); this.main(); }
+        else if (b.dataset.a === 'save' || b.dataset.a === 'practice') {
+          localStorage.setItem('hw27.myplayer', JSON.stringify(raw));
+          if (b.dataset.a === 'practice') { this.prCfg = { team: 0, player: 0, defender: true }; this.app.hideMenuPreview(); this.practiceSetup(); }
+          else render();
+        } else if (b.dataset.a === 'delete') { localStorage.removeItem('hw27.myplayer'); this.builderRaw = null; this.app.hideMenuPreview(); this.main(); }
+      });
+      s.addEventListener('change', (e) => {
+        const k = e.target.dataset.in;
+        if (!k) return;
+        raw[k] = k === 'num' ? Math.max(0, Math.min(99, Number(e.target.value) || 0)) : e.target.value.trim() || raw[k];
+        render(); preview();
+      });
+      s.addEventListener('input', (e) => {
+        const k = e.target.dataset.sl;
+        if (!k) return;
+        const v = Number(e.target.value);
+        if (k === 'jspeed') raw.jumper.speed = v;
+        else if (k === 'jarc') raw.jumper.arc = v;
+        else raw[k] = v;
+        if (k === 'h') raw.ws = Math.max(raw.h - 5, Math.min(raw.h + 20, raw.ws));
+        e.target.nextElementSibling.textContent = k === 'jspeed' ? (v > 1.04 ? 'Quick' : v < 0.94 ? 'Slow' : 'Normal') : k === 'jarc' ? `${v}°` : `${v} ${k === 'w' ? 'kg' : 'cm'}`;
+        clearTimeout(this.sliderT);
+        this.sliderT = setTimeout(() => { render(); preview(); }, 180);
+      });
+    };
+    render();
+    preview();
   }
 
   // -------------------------------------------------------------------------

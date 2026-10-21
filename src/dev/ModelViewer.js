@@ -31,7 +31,7 @@ export function startModelViewer(stage, ui) {
   const p = new Player(def, 0, true);
   p.onCourt = true;
   p.setPos(0, 0, Math.PI / 2);
-  const view = new PlayerView(p, { colors: team.colors[params.get('uni') || 'home'] }, { quality: r.q.mesh, teamName: team.name });
+  const view = new PlayerView(p, params.has('official') ? { colors: ['#9ea3ab', '#16171b', '#16171b'], official: true } : { colors: team.colors[params.get('uni') || 'home'] }, { quality: r.q.mesh, teamName: team.name });
   scene.add(view.root);
   const clips = Object.keys(view.lib.clips);
   let clip = params.get('clip') || 'idle';

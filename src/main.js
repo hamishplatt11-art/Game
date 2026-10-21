@@ -54,13 +54,39 @@ class App {
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
       this.menuCam.update(dt, {});
+      if (this.preview) this.preview.view.update({ ball: { owner: null, state: 'dead', dribble: { side: 1 }, air: null }, match: { phase: 'menu' } }, 1, dt, { x: 0, y: 1, z: 3 });
       this.menuArena.update(dt, now / 1000, { excite: 0.25, shotClockText: '24', gameClockText: '12:00', score: '0-0', scoreHome: 0, scoreAway: 0, clockText: '12:00', quarterText: 'Q1' }, null);
       this.menuRenderer.render();
     };
     this.menuRaf = requestAnimationFrame(loop);
   }
 
+  /** Show a generated player at centre court in the menu scene (MyPLAYER builder). */
+  async showMenuPreview(def, colors) {
+    if (!this.menuRenderer) return;
+    const { PlayerView } = await import('./render/PlayerView.js');
+    const { Player } = await import('./sim/Player.js');
+    this.hideMenuPreview();
+    const p = new Player(def, 0, true);
+    p.onCourt = true;
+    p.setPos(0, 0, Math.PI / 2);
+    const view = new PlayerView(p, { colors }, { quality: this.menuRenderer.q.mesh, teamName: 'MyPLAYER' });
+    this.menuRenderer.scene.add(view.root);
+    this.preview = { p, view };
+    if (!this.menuCam.cinematic || this.menuCam.cinematic.kind !== 'preview') this.menuCam.startCinematic('preview', { height: def.heightM });
+    else this.menuCam.cinematic.height = def.heightM;
+  }
+
+  hideMenuPreview() {
+    if (!this.preview) return;
+    this.menuRenderer?.scene.remove(this.preview.view.root);
+    this.preview.view.dispose();
+    this.preview = null;
+    if (this.menuCam) this.menuCam.startCinematic('menu');
+  }
+
   disposeMenuScene() {
+    this.preview = null;
     cancelAnimationFrame(this.menuRaf);
     if (this.menuRenderer) this.menuRenderer.dispose();
     this.menuRenderer = null;

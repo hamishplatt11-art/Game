@@ -240,6 +240,25 @@ export function makeJerseyTexture(colors, num, last, teamName) {
   return tex(c);
 }
 
+/** Referee shirt: grey with black side panels, collar trim and a number on the back. */
+export function makeOfficialTexture(num) {
+  const W = 512, H = 256;
+  const c = canvas(W, H);
+  const x = c.getContext('2d');
+  x.fillStyle = '#9ea3ab';
+  x.fillRect(0, 0, W, H);
+  x.fillStyle = '#16171b';
+  for (const u of [0, 0.5, 1]) x.fillRect(u * W - 18, 0, 36, H);
+  x.fillRect(0.75 * W - 50, 0, 100, 10);
+  x.fillRect(0.25 * W - 50, 0, 100, 10);
+  x.font = '900 70px "Arial Black", Impact, sans-serif';
+  x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillText(String(num), 0.25 * W, 110);
+  x.font = '900 26px "Arial Black", Impact, sans-serif';
+  x.fillText(String(num), 0.82 * W, 70);
+  return tex(c);
+}
+
 export function makeShortsTexture(colors, teamName) {
   const W = 512, H = 512;
   const c = canvas(W, H);

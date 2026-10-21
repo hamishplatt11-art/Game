@@ -9,6 +9,7 @@ import { Renderer } from '../render/Renderer.js';
 import { Arena } from '../render/Arena.js';
 import { PlayerView } from '../render/PlayerView.js';
 import { BallView } from '../render/BallView.js';
+import { Referees } from '../render/Referees.js';
 import { CameraSystem, CAMERA_MODES, CAMERA_LABELS } from '../render/CameraSystem.js';
 import { HUD } from '../ui/HUD.js';
 import { commentaryFor } from '../ui/Commentary.js';
@@ -86,6 +87,7 @@ export class Game {
       }
     }
     this.ball = new BallView(this.scene, this.renderer.q.mesh);
+    if (cfg.mode === 'playnow') this.refs = new Referees(this.scene, this.renderer.q.mesh);
     this.camera = new CameraSystem(this.renderer.camera);
     this.camera.mode = this.settings.cameraMode;
     this.camera.settings = { height: this.settings.camHeight, zoom: this.settings.camZoom, tracking: this.settings.camTracking };
@@ -140,10 +142,10 @@ export class Game {
   }
 
   /** Debug/testing: advance the simulation without rendering (used by automated browser tests). */
-  fastForward(seconds, until = null) {
+  fastForward(seconds, until = null, inputFn = null) {
     const n = Math.round(seconds * 60);
     for (let i = 0; i < n; i++) {
-      this.sim.step(null);
+      this.sim.step(inputFn ? inputFn(this.sim, i) : null);
       this.recordReplay();
       this.handleEvents(this.sim.drainEvents());
       if (until && until(this.sim)) break;
@@ -224,6 +226,7 @@ export class Game {
       if (!p.onCourt && !this.replay) { view.root.visible = false; continue; }
       view.update(sim, alpha, this.replay ? dt * this.replay.speed : dt, ballPos);
     }
+    if (this.refs && !this.replay) this.refs.update(this.sim, dt, ballPos);
     // Selection indicator.
     const u = this.sim.user.player;
     if (u && !this.replay && u.onCourt) {

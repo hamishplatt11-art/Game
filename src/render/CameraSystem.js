@@ -125,6 +125,12 @@ export class CameraSystem {
       c.position.set(Math.cos(a) * 24, 9 + Math.sin(cin.t * 0.1) * 2, Math.sin(a) * 18);
       c.lookAt(0, 2, 0);
       if (c.fov !== 42) { c.fov = 42; c.updateProjectionMatrix(); }
+    } else if (cin.kind === 'preview') {
+      const a = 0.3 + cin.t * 0.25;
+      const h = cin.height || 2;
+      c.position.set(Math.sin(a) * 4.2, h * 0.6 + 0.4, Math.cos(a) * 4.2);
+      c.lookAt(0, h * 0.5, 0);
+      if (c.fov !== 38) { c.fov = 38; c.updateProjectionMatrix(); }
     } else if (cin.kind === 'replay') {
       // Low orbit around the highlight player toward the rim.
       const tgt = cin.target ? cin.target() : ctx.ball;

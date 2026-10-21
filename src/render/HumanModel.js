@@ -9,7 +9,7 @@
 // This is an engineering stand-in for licensed scanned/sculpted character
 // assets; the asset pipeline can swap in a GLB that uses the same bone names.
 import * as THREE from 'three';
-import { makeJerseyTexture, makeShortsTexture, makeSkinTexture, makeFaceTexture, makeHairTexture } from './Textures.js';
+import { makeJerseyTexture, makeShortsTexture, makeSkinTexture, makeFaceTexture, makeHairTexture, makeOfficialTexture } from './Textures.js';
 
 export const BONES = [
   'root', 'hips', 'spine', 'chest', 'neck', 'head',
@@ -101,10 +101,17 @@ class SkinGeo {
       this.seams.push([start + i * (segs + 1), start + i * (segs + 1) + segs]);
     });
     const row = segs + 1;
+    // Winding: faces point outward when (loft axis x w) is along u. Lofts that run
+    // downward (limbs) or along +z with an upward w (shoes) need the opposite order.
+    const f = rings[0], l = rings[rings.length - 1];
+    const ax = [l.c[0] - f.c[0], l.c[1] - f.c[1], l.c[2] - f.c[2]];
+    const cw = [ax[1] * f.w[2] - ax[2] * f.w[1], ax[2] * f.w[0] - ax[0] * f.w[2], ax[0] * f.w[1] - ax[1] * f.w[0]];
+    const inv = cw[0] * f.u[0] + cw[1] * f.u[1] + cw[2] * f.u[2] < 0;
     for (let i = 0; i < rings.length - 1; i++) {
       for (let j = 0; j < segs; j++) {
         const a = start + i * row + j, b = a + 1, c = a + row, d = c + 1;
-        this.idx.push(a, c, b, b, c, d);
+        if (inv) this.idx.push(a, b, c, b, d, c);
+        else this.idx.push(a, c, b, b, c, d);
       }
     }
     const cap = (ri, flip) => {
@@ -113,7 +120,7 @@ class SkinGeo {
       const ci = this.vert(r.c, [0.5, ri === 0 ? vRange[0] : vRange[1]], wts, r.color);
       for (let j = 0; j < segs; j++) {
         const a = start + ri * row + j, b = a + 1;
-        if (flip) this.idx.push(ci, a, b); else this.idx.push(ci, b, a);
+        if (flip !== inv) this.idx.push(ci, a, b); else this.idx.push(ci, b, a);
       }
     };
     if (capStart) cap(0, false);
@@ -564,12 +571,26 @@ export function buildHuman(def, uniform, opts = {}) {
   });
   jr.unshift({ ...jr[0], c: [0, 0.46 * H, jr[0].c[2]], rx: jr[0].rx * 1.02, rz: jr[0].rz * 1.04, mod: null });
   jersey.loft(jr, segs + 8);
-  const jerseyTex = makeJerseyTexture(colors, def.num, def.last, opts.teamName || '');
+  const jerseyTex = uniform.official ? makeOfficialTexture(def.num) : makeJerseyTexture(colors, def.num, def.last, opts.teamName || '');
   const clothMat = (tex, rough = 0.78) => (quality === 'low'
     ? new THREE.MeshLambertMaterial({ map: tex, alphaTest: 0.5, side: THREE.DoubleSide })
     : new THREE.MeshPhysicalMaterial({ map: tex, roughness: rough, sheen: 0.6, sheenRoughness: 0.5, sheenColor: new THREE.Color(colors[0]).lerp(new THREE.Color('#ffffff'), 0.4), alphaTest: 0.5, side: THREE.DoubleSide }));
   addMesh(jersey.build(), clothMat(jerseyTex, 0.72), 'jersey');
 
+  if (uniform.official) {
+    // Referee: full-length slacks instead of shorts.
+    const pants = new SkinGeo();
+    const wbp = [];
+    for (const y of [0.6, 0.57, 0.54, 0.51]) {
+      const t = sampleTorso(H, g, y * H);
+      wbp.push({ c: [0, y * H, t.zo], u: X, w: Z, rx: t.hw * 1.05 + 0.005 * H, rz: t.hd * 1.08 + 0.006 * H, n: 2.3, wts: torsoWeights(H) });
+    }
+    pants.loft(wbp, segs + 8);
+    for (const s of ['L', 'R']) pants.loft(legRings(J, s, H, g, { from: 0, to: 0.97, scale: 1.26, extra: 0.008 * H, sculpt: false }), segs);
+    addMesh(pants.build(), cachedMat('ref-pants', () => new THREE.MeshStandardMaterial({ color: '#15161a', roughness: 0.8 })), 'pants');
+    addMesh(buildShoes(J, H, '#101010', '#202020'), cachedMat(`shoe-${quality}`, () => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.05 })), 'shoes');
+    return { group, skeleton, bones, meshes, H, J, g, headC };
+  }
   const shorts = new SkinGeo();
   const wb = [];
   for (const y of [0.605, 0.575, 0.545, 0.52, 0.5]) {
@@ -578,9 +599,9 @@ export function buildHuman(def, uniform, opts = {}) {
   }
   shorts.loft(wb, segs + 8, { vRange: [0, 0.3] });
   for (const s of ['L', 'R']) {
-    const lr = legRings(J, s, H, g, { from: 0, to: 0.5, scale: 1.22, extra: 0.007 * H, sculpt: false }).map((r, i, arr) => {
+    const lr = legRings(J, s, H, g, { from: 0, to: 0.5, scale: 1.3, extra: 0.008 * H, sculpt: false }).map((r, i, arr) => {
       const t = i / (arr.length - 1);
-      return { ...r, rx: r.rx * (1 + 0.1 * t), rz: r.rz * (1 + 0.1 * t), wts: t < 0.3 ? [['hips', 0.6], [`thigh_${s}`, 0.4]] : [['hips', 0.2], [`thigh_${s}`, 0.8]] };
+      return { ...r, rx: r.rx * (1 + 0.1 * t), rz: r.rz * (1 + 0.12 * t), wts: t < 0.25 ? [['hips', 0.45], [`thigh_${s}`, 0.55]] : [['hips', 0.08], [`thigh_${s}`, 0.92]] };
     });
     shorts.loft(lr, segs, { vRange: [0.3, 1] });
   }
