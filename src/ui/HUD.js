@@ -347,7 +347,12 @@ export class HUD {
       if (a === 'resume') this.game.setPaused(false);
       if (a === 'box') this.showBoxScore(() => this.showPause());
       if (a === 'subs') this.showSubs(() => this.showPause());
-      if (a === 'timeout') { sim.match.requestTimeout(userTeam); this.game.paused = false; }
+      if (a === 'timeout') {
+        this.closeOverlay();
+        this.game.paused = false;
+        sim.match.requestTimeout(userTeam);
+        this.game.handleEvents(sim.drainEvents());
+      }
       if (a === 'camera') { this.game.cycleCamera(); this.showPause(); }
       if (a === 'meter') { this.game.settings.shotMeter = !this.game.settings.shotMeter; this.game.app.settings.save(); this.showPause(); }
       if (a === 'controls') this.showControls(() => this.showPause());

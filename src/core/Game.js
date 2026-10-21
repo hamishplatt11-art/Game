@@ -139,9 +139,22 @@ export class Game {
     this.views.clear();
   }
 
+  /** Debug/testing: advance the simulation without rendering (used by automated browser tests). */
+  fastForward(seconds, until = null) {
+    const n = Math.round(seconds * 60);
+    for (let i = 0; i < n; i++) {
+      this.sim.step(null);
+      this.recordReplay();
+      this.handleEvents(this.sim.drainEvents());
+      if (until && until(this.sim)) break;
+    }
+    this.acc = 0;
+  }
+
   setPaused(p) {
     this.paused = p;
     if (p) this.hud.showPause(); else this.hud.hidePause();
+    this.audio.ensure();
   }
 
   cycleCamera() {
@@ -159,7 +172,11 @@ export class Game {
     this.last = now;
     this.input.pollPad(now);
     const ui = this.input.ui();
-    if (ui.pause && !this.hud.modalOpen() && this.sim.match.phase !== 'pregame') this.setPaused(!this.paused);
+    if (ui.pause && this.sim.match.phase !== 'pregame' && !this.replay) {
+      const ov = this.hud.overlay;
+      if (!ov) this.setPaused(true);
+      else if (this.paused) { this.hud.closeOverlay(); this.setPaused(false); }
+    }
     if (ui.camera) this.cycleCamera();
     const sim = this.sim;
     let simMs = 0;

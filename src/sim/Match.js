@@ -318,7 +318,10 @@ export class Match {
       for (const p of sim.teams[this.possTeam].onCourt) {
         const shooting = p.action && ['shot', 'layup', 'dunk'].includes(p.action.type);
         if (inPaint(p.x, p.z, hoop) && !shooting) {
-          p.inLaneT += dt;
+          // The count pauses while the player is clearly leaving the lane.
+          const s = hoopSign(hoop);
+          const leaving = p.speed > 1.0 && (p.vx * -s > 0.6 || Math.abs(p.vz) > 0.8 && Math.abs(p.z) > 1.2);
+          if (!leaving) p.inLaneT += dt;
           if (p.inLaneT > 3 && !(holder === p && sim.velTowardHoop(p, hoop) > 1)) {
             p.inLaneT = 0;
             this.violation('3 seconds', p.team, { x: p.x, z: p.z }, p);
@@ -330,8 +333,9 @@ export class Match {
       const dteam = sim.teams[1 - this.possTeam];
       for (const d of dteam.onCourt) {
         if (inPaint(d.x, d.z, hoop)) {
-          let guarding = false;
-          for (const o of sim.teams[this.possTeam].onCourt) if (o.distTo(d) < 1.7) guarding = true;
+          // Guarding = within arm's length of an opponent, or actively helping on the ball handler.
+          let guarding = holder.distTo(d) < 4.5;
+          for (const o of sim.teams[this.possTeam].onCourt) if (o.distTo(d) < 2.0) guarding = true;
           d.defLaneT = guarding ? 0 : (d.defLaneT || 0) + dt;
           if (d.defLaneT > 3) {
             d.defLaneT = 0;
@@ -549,6 +553,8 @@ export class Match {
 
   onShotRelease(p, shot) {
     const sim = this.sim;
+    // A shot attempt resets every three-second count.
+    for (const q of sim.players) { q.inLaneT = 0; q.defLaneT = 0; }
     if (shot.kind === 'ft') {
       p.stats.fta++;
       if (this.ft) this.ft.inFlight = true;
@@ -747,7 +753,15 @@ export class Match {
       return;
     }
     const b = this.sim.ball;
-    // An air ball out of bounds after the shot clock expired is a shot clock violation.
+    if (b.air && b.air.kind === 'shot' && b.air.shot && b.lastTouch === b.air.shot.shooter && this.phase === 'live') {
+      // Missed shot out of bounds untouched: a team rebound for the defence, not a turnover.
+      const team = 1 - b.air.shot.team;
+      this.sim.emit('whistle', { kind: 'oob' });
+      this.sim.emit('violationCalled', { label: 'Out Of Bounds', team: b.air.shot.team });
+      if (this.halfCourt) { this.dead(1.2, () => this.setupCheck(team)); return; }
+      this.dead(1.2, () => this.setupInbound(team, this.inboundSpot(spot, team), 'out of bounds'));
+      return;
+    }
     this.violation('out of bounds', lastTeam ?? this.possTeam, spot);
     b.state = 'dead';
   }

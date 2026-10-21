@@ -98,6 +98,7 @@ export class TeamAI {
       const it = p.intent;
       it.walk = false; it.stance = false; it.handsUp = false; it.faceX = null; it.faceZ = null; it.sprint = false;
       if (p.ai.screening && sim.t > p.ai.screenUntil) p.ai.screening = false;
+      if (phase === 'live' && this.avoidLaneViolations(p)) continue;
       switch (phase) {
         case 'tipoff':
           it.mx = 0; it.mz = 0; it.faceX = 0; it.faceZ = 0;
@@ -119,6 +120,20 @@ export class TeamAI {
           it.mx = 0; it.mz = 0;
       }
     }
+  }
+
+  /** Step out of the lane before a three-second violation (offence or defence). */
+  avoidLaneViolations(p) {
+    const m = this.sim.match;
+    const offense = m.possTeam === this.team;
+    const t = offense ? p.inLaneT : p.defLaneT || 0;
+    if (t < 2.0 || this.sim.ball.owner === p) return false;
+    const hoop = offense ? m.attackHoop(this.team) : m.defendHoop(this.team);
+    if (!inPaint(p.x, p.z, hoop)) return false;
+    const side = p.z >= 0 ? 1 : -1;
+    const tgt = this.toWorld(hoop, 2.4, side * 3.4);
+    this.moveTo(p, tgt.x, tgt.z, 'sprint', 0.2);
+    return true;
   }
 
   onPossessionChange() {
@@ -671,9 +686,9 @@ export class TeamAI {
     const iq = 0.5 * p.r('passIQ') + 0.5 * p.r('shotIQ');
     const noise = (this.isCpu ? sim.diff.cpuNoise : 0.18) * (1.3 - iq) * 0.8;
     // Quality bar: early in the clock only good looks are taken; it drops as the clock runs down.
-    const bar = lerp(0.55, 1.15, clamp((clock - 3) / 15, 0, 1)) - (p.ai.isoT ? 0 : 0);
+    const bar = lerp(0.55, 1.28, clamp((clock - 3) / 14, 0, 1));
     const options = [];
-    const shotTend = 0.75 + p.def.tend.shot * 0.4 + (shot.three ? p.def.tend.three * 0.25 - 0.1 : 0);
+    const shotTend = 0.75 + p.def.tend.shot * 0.4 + (shot.three ? p.def.tend.three * 0.2 - 0.16 : 0.04);
     let shootScore = shot.ev * shotTend - bar - (sinceCatch < 0.25 ? 0.15 : 0);
     if (shot.dist > THREE_R + 2.2 && clock > 3) shootScore -= 1.0;
     options.push(['shoot', shootScore]);
@@ -937,7 +952,7 @@ export class TeamAI {
       it.handsUp = dist < 8;
       // Steal attempts on exposed dribbles.
       const exposed = holder.action && holder.action.type === 'move' ? holder.action.data.m.exposure : b.state === 'dribble' ? 0.1 : 0;
-      const agg = (0.001 + exposed * 0.02) * (0.4 + p.r('steal')) * (isCpu ? sim.diff.cpuSteal : 0.7);
+      const agg = (0.0006 + exposed * 0.012) * (0.4 + p.r('steal')) * (isCpu ? sim.diff.cpuSteal : 0.7);
       if (holder.distTo(p) < 1.3 && !p.action && sim.rng.chance(agg)) sim.attemptSteal(p);
       this.considerContest(p, holder, quality);
       if (holder.posting && sim.t - (holder.ai.postStart || 0) > 0) { /* body up */ }

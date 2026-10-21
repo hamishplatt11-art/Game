@@ -158,7 +158,7 @@ export class Simulation {
   giveBall(p, how = 'catch') {
     const b = this.ball;
     const prevTeam = b.lastTouch ? b.lastTouch.team : null;
-    const air = b.air;
+    const air = b.state === 'air' ? b.air : null;
     b.state = 'held';
     b.owner = p;
     b.air = null;
@@ -451,6 +451,11 @@ export class Simulation {
     };
     this.releaseBall('shot', sol.v, { shot: shotInfo });
     p.inLaneT = 0;
+    // Close-outs that fly into the shooter's landing space or hit the arm.
+    if (d.shotType !== 'ft' && contest.by && contest.by.distTo(p) < 1.1 && (contest.by.airborne || contest.by.speed > 2.5)) {
+      const pf = 0.1 * (1.2 - 0.5 * contest.by.r('defAwareness'));
+      if (this.rng.chance(pf)) this.match.foul(contest.by, p, 'shooting', a, 'shooting foul');
+    }
     this.lastShotFeedback = shotInfo;
     this.emit('shotRelease', { player: p, shot: shotInfo });
     this.match.onShotRelease(p, shotInfo);
@@ -1055,6 +1060,11 @@ export class Simulation {
       // Defender still moving into the driver's path: blocking foul.
       if (this.rng.chance(0.3 * (1 - 0.4 * def.r('defAwareness')))) { this.match.foul(def, off, 'personal', null, 'blocking foul'); return; }
     }
+    // Hand-check / body foul on a hard drive.
+    if (closing > 2.0 && this.rng.chance(0.09 * (1.2 - 0.6 * def.r('perimeterD')))) {
+      this.match.foul(def, off, 'personal', null, 'blocking foul');
+      return;
+    }
     // No call: a cutoff. Ratings decide whether the contact jars the ball loose.
     off.vx *= 0.45; off.vz *= 0.45;
     if (!off.action) this.setAction(off, 'bump', 0.3, { nx, nz }, { slow: 0.7 });
@@ -1177,6 +1187,9 @@ export class Simulation {
         this.blockBall(d, p, true);
         return;
       }
+      // Missed the ball: contact on the arm/body is a shooting foul.
+      const contact = (t === 'shot' ? 0.18 : 0.42) * (1.15 - 0.5 * d.r('defAwareness')) * (1 + 0.05 * p.badge('strongFinisher'));
+      if (this.rng.chance(contact)) { this.match.foul(d, p, 'shooting', p.action, 'shooting foul'); return; }
     }
   }
 
@@ -1355,7 +1368,14 @@ export class Simulation {
       }
       if (!cands.length) return;
       const winner = cands.length === 1 ? cands[0][0] : this.rng.weighted(cands);
-      if (cands.length > 1) this.emit('contestedRebound', { winner });
+      if (cands.length > 1) {
+        this.emit('contestedRebound', { winner });
+        const loser = cands.find(([m]) => m !== winner && m.team !== winner.team);
+        if (loser && this.match.phase === 'live' && this.rng.chance(0.06)) {
+          this.match.foul(loser[0], winner, 'personal', null, 'loose ball foul');
+          return;
+        }
+      }
       this.giveBall(winner, air.kind === 'shot' || air.blockedShot || this.match.reboundable ? 'rebound' : 'loose');
     }
   }
@@ -1715,7 +1735,7 @@ const ACTIONS = {
       const dBody = h.distTo(p);
       const shielded = dBall > dBody + 0.05;
       const exposure = h.action && h.action.type === 'move' ? h.action.data.m.exposure : b.state === 'dribble' ? 0.12 : 0.04;
-      let ps = 0.02 + 0.18 * p.r('steal') + exposure * 0.5 - 0.12 * h.r('ballHandle') - 0.02 * h.badge('tightHandles');
+      let ps = 0.015 + 0.15 * p.r('steal') + exposure * 0.4 - 0.12 * h.r('ballHandle') - 0.02 * h.badge('tightHandles');
       ps *= 1 + 0.08 * p.badge('ballHawk');
       if (p.takeoverOn('defense')) ps *= 1.15;
       if (p.team !== sim.user.team) ps *= sim.diff.cpuSteal;

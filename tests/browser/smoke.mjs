@@ -2,7 +2,7 @@
 // Chromium (WebGL via SwiftShader when no GPU), records console errors and
 // screenshots, and checks that a 5v5 match is playable from the menu.
 import { chromium } from 'playwright-core';
-import { createServer } from 'vite';
+import { startServer } from './server.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -20,8 +20,7 @@ function findChrome() {
   throw new Error('chromium not found');
 }
 
-const server = await createServer({ server: { port: 5199, host: '127.0.0.1' }, logLevel: 'error' });
-await server.listen();
+const server = await startServer(5199);
 const browser = await chromium.launch({ executablePath: exe, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
@@ -30,7 +29,7 @@ page.on('pageerror', (e) => errors.push(String(e.stack || e)));
 const shot = (n) => page.screenshot({ path: path.join(out, `${n}.png`) });
 const mode = process.argv[2] || 'playnow';
 try {
-  await page.goto('http://127.0.0.1:5199/', { waitUntil: 'load' });
+  await page.goto(server.url + '', { waitUntil: 'load' });
   await page.waitForSelector('.main-nav', { timeout: 60000 });
   await page.waitForTimeout(1500);
   await shot('01-menu');

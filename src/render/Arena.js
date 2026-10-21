@@ -123,7 +123,7 @@ export class Arena {
       for (const s of [-1, 1]) {
         x.save();
         x.translate(X(s * (HALF_L + 1.3)), Z(0));
-        x.rotate(s * Math.PI / 2 * -1);
+        x.rotate(s * Math.PI / 2);
         x.fillText(this.home.name.toUpperCase(), -x.measureText(this.home.name.toUpperCase()).width / 2, M(0.3));
         x.restore();
       }
