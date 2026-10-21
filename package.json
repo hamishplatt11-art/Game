@@ -1,0 +1,22 @@
+{
+  "name": "hardwood-sim-27",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "HTML5 / Three.js 5v5 basketball simulation inspired by modern NBA 2K gameplay",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:browser": "node tests/browser/smoke.mjs"
+  },
+  "dependencies": {
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.55.0",
+    "vite": "^7.1.12",
+    "vitest": "^3.2.4"
+  }
+}

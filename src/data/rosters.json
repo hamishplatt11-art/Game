@@ -1,0 +1,107 @@
+{
+  "_note": "Original fictional league. Real NBA teams, players, likenesses and uniforms require licences; this file uses the same schema so a licensed roster can be dropped in without engine changes.",
+  "teams": [
+    {
+      "id": "BAY", "city": "Bay City", "name": "Tides", "abbr": "BAY",
+      "colors": { "home": ["#f4f4f4", "#0b4f8a", "#f2b41c"], "away": ["#0b4f8a", "#f4f4f4", "#f2b41c"], "alt": ["#f2b41c", "#0b4f8a", "#ffffff"] },
+      "court": { "paint": "#0b4f8a", "accent": "#f2b41c" },
+      "style": "pace-and-space",
+      "players": [
+        { "first": "Marcus", "last": "Vale", "num": 30, "pos": "PG", "h": 188, "w": 84, "ws": 193, "arch": "sharpshooter", "ovr": 94, "skin": 2, "hair": "short", "beard": "none", "acc": ["sleeveR"] },
+        { "first": "Dante", "last": "Okoro", "num": 11, "pos": "SG", "h": 198, "w": 93, "ws": 206, "arch": "shooter", "ovr": 84, "skin": 4, "hair": "buzz", "beard": "stubble" },
+        { "first": "Elijah", "last": "Price", "num": 22, "pos": "SF", "h": 203, "w": 102, "ws": 213, "arch": "twoWay", "ovr": 81, "skin": 3, "hair": "twists", "beard": "short" },
+        { "first": "Theo", "last": "Larkin", "num": 23, "pos": "PF", "h": 206, "w": 104, "ws": 213, "arch": "playmakingBig", "ovr": 82, "skin": 1, "hair": "short", "beard": "full" },
+        { "first": "Kofi", "last": "Mensah", "num": 5, "pos": "C", "h": 211, "w": 115, "ws": 224, "arch": "rimProtector", "ovr": 80, "skin": 5, "hair": "buzz", "beard": "none", "acc": ["headband"] },
+        { "first": "Jalen", "last": "Brooks", "num": 0, "pos": "PG", "h": 185, "w": 79, "ws": 190, "arch": "slasher", "ovr": 76, "skin": 4, "hair": "fade", "beard": "none" },
+        { "first": "Owen", "last": "Hart", "num": 9, "pos": "SF", "h": 201, "w": 98, "ws": 206, "arch": "shooter", "ovr": 74, "skin": 0, "hair": "short", "beard": "stubble" },
+        { "first": "Andre", "last": "Coles", "num": 32, "pos": "PF", "h": 206, "w": 109, "ws": 216, "arch": "athleticFinisher", "ovr": 75, "skin": 5, "hair": "afro", "beard": "none" },
+        { "first": "Viktor", "last": "Saric", "num": 15, "pos": "C", "h": 213, "w": 118, "ws": 218, "arch": "postScorer", "ovr": 73, "skin": 0, "hair": "long", "beard": "full" }
+      ]
+    },
+    {
+      "id": "KNG", "city": "Kingsport", "name": "Crowns", "abbr": "KNG",
+      "colors": { "home": ["#f7f3e8", "#4b1d6b", "#d4a531"], "away": ["#4b1d6b", "#d4a531", "#f7f3e8"], "alt": ["#111111", "#d4a531", "#4b1d6b"] },
+      "court": { "paint": "#4b1d6b", "accent": "#d4a531" },
+      "style": "star-wing",
+      "players": [
+        { "first": "Isaiah", "last": "Grant", "num": 6, "pos": "SF", "h": 206, "w": 113, "ws": 214, "arch": "allAround", "ovr": 95, "skin": 4, "hair": "short", "beard": "full", "acc": ["sleeveL"] },
+        { "first": "Rafael", "last": "Duarte", "num": 3, "pos": "PG", "h": 191, "w": 86, "ws": 198, "arch": "playmaker", "ovr": 83, "skin": 2, "hair": "long", "beard": "short" },
+        { "first": "Miles", "last": "Hayes", "num": 14, "pos": "SG", "h": 196, "w": 90, "ws": 203, "arch": "slasher", "ovr": 79, "skin": 3, "hair": "fade", "beard": "none" },
+        { "first": "Grant", "last": "Holloway", "num": 41, "pos": "PF", "h": 208, "w": 111, "ws": 216, "arch": "stretchBig", "ovr": 80, "skin": 0, "hair": "short", "beard": "stubble" },
+        { "first": "Samuel", "last": "Adeyemi", "num": 21, "pos": "C", "h": 213, "w": 120, "ws": 226, "arch": "rimProtector", "ovr": 83, "skin": 5, "hair": "buzz", "beard": "short" },
+        { "first": "Tavion", "last": "Monroe", "num": 1, "pos": "PG", "h": 183, "w": 77, "ws": 188, "arch": "shooter", "ovr": 74, "skin": 4, "hair": "braids", "beard": "none" },
+        { "first": "Lucas", "last": "Berg", "num": 17, "pos": "SF", "h": 203, "w": 100, "ws": 208, "arch": "twoWay", "ovr": 74, "skin": 0, "hair": "short", "beard": "full" },
+        { "first": "Darnell", "last": "Wade", "num": 8, "pos": "PF", "h": 203, "w": 107, "ws": 213, "arch": "athleticFinisher", "ovr": 73, "skin": 5, "hair": "twists", "beard": "stubble" },
+        { "first": "Ivan", "last": "Petrov", "num": 44, "pos": "C", "h": 216, "w": 122, "ws": 220, "arch": "postScorer", "ovr": 72, "skin": 0, "hair": "buzz", "beard": "full" }
+      ]
+    },
+    {
+      "id": "ATL", "city": "Atlas", "name": "Forge", "abbr": "ATL",
+      "colors": { "home": ["#f2f2f2", "#b3261e", "#1d1d1d"], "away": ["#b3261e", "#f2f2f2", "#1d1d1d"], "alt": ["#1d1d1d", "#b3261e", "#f2f2f2"] },
+      "court": { "paint": "#b3261e", "accent": "#1d1d1d" },
+      "style": "inside-out",
+      "players": [
+        { "first": "Nikolai", "last": "Varga", "num": 15, "pos": "C", "h": 211, "w": 129, "ws": 221, "arch": "playmakingBig", "ovr": 96, "skin": 0, "hair": "short", "beard": "stubble" },
+        { "first": "Cedric", "last": "Ames", "num": 7, "pos": "PG", "h": 188, "w": 88, "ws": 196, "arch": "slasher", "ovr": 82, "skin": 4, "hair": "fade", "beard": "short" },
+        { "first": "Paolo", "last": "Rinaldi", "num": 13, "pos": "SG", "h": 196, "w": 92, "ws": 201, "arch": "sharpshooter", "ovr": 80, "skin": 1, "hair": "long", "beard": "short" },
+        { "first": "Jordan", "last": "Ellis", "num": 25, "pos": "SF", "h": 201, "w": 102, "ws": 213, "arch": "twoWay", "ovr": 81, "skin": 3, "hair": "buzz", "beard": "none", "acc": ["sleeveR"] },
+        { "first": "Aaron", "last": "Reed", "num": 50, "pos": "PF", "h": 203, "w": 107, "ws": 211, "arch": "athleticFinisher", "ovr": 79, "skin": 5, "hair": "short", "beard": "full" },
+        { "first": "Kyle", "last": "Rowan", "num": 2, "pos": "PG", "h": 185, "w": 82, "ws": 191, "arch": "playmaker", "ovr": 73, "skin": 0, "hair": "short", "beard": "none" },
+        { "first": "Malik", "last": "Dunmore", "num": 12, "pos": "SG", "h": 198, "w": 95, "ws": 206, "arch": "shooter", "ovr": 73, "skin": 4, "hair": "twists", "beard": "none" },
+        { "first": "Christian", "last": "Ndiaye", "num": 33, "pos": "PF", "h": 206, "w": 106, "ws": 218, "arch": "stretchBig", "ovr": 72, "skin": 5, "hair": "buzz", "beard": "stubble" },
+        { "first": "Ben", "last": "Kowalski", "num": 40, "pos": "C", "h": 213, "w": 118, "ws": 216, "arch": "rimProtector", "ovr": 71, "skin": 0, "hair": "short", "beard": "full" }
+      ]
+    },
+    {
+      "id": "NOR", "city": "Northfield", "name": "Wolves", "abbr": "NOR",
+      "colors": { "home": ["#eef2f0", "#0f4c3a", "#9bc53d"], "away": ["#0f4c3a", "#eef2f0", "#9bc53d"], "alt": ["#9bc53d", "#0f4c3a", "#eef2f0"] },
+      "court": { "paint": "#0f4c3a", "accent": "#9bc53d" },
+      "style": "athletic-wings",
+      "players": [
+        { "first": "Antoine", "last": "Reyes", "num": 5, "pos": "SG", "h": 193, "w": 102, "ws": 206, "arch": "athleticFinisher", "ovr": 93, "skin": 4, "hair": "fade", "beard": "none" },
+        { "first": "Mike", "last": "Lindqvist", "num": 10, "pos": "PG", "h": 185, "w": 80, "ws": 190, "arch": "playmaker", "ovr": 80, "skin": 0, "hair": "short", "beard": "short" },
+        { "first": "Jaden", "last": "Carrow", "num": 0, "pos": "SF", "h": 201, "w": 98, "ws": 211, "arch": "twoWay", "ovr": 80, "skin": 3, "hair": "braids", "beard": "none" },
+        { "first": "Julian", "last": "Ford", "num": 30, "pos": "PF", "h": 203, "w": 113, "ws": 211, "arch": "postScorer", "ovr": 81, "skin": 5, "hair": "buzz", "beard": "full" },
+        { "first": "Remy", "last": "Gauthier", "num": 27, "pos": "C", "h": 216, "w": 118, "ws": 234, "arch": "rimProtector", "ovr": 84, "skin": 1, "hair": "short", "beard": "short" },
+        { "first": "Nick", "last": "Alvarez", "num": 3, "pos": "PG", "h": 188, "w": 84, "ws": 193, "arch": "shooter", "ovr": 74, "skin": 2, "hair": "long", "beard": "stubble" },
+        { "first": "Donte", "last": "Vincent", "num": 9, "pos": "SG", "h": 196, "w": 93, "ws": 206, "arch": "twoWay", "ovr": 73, "skin": 4, "hair": "afro", "beard": "none" },
+        { "first": "Chidi", "last": "Okafor", "num": 11, "pos": "C", "h": 206, "w": 120, "ws": 219, "arch": "stretchBig", "ovr": 75, "skin": 5, "hair": "short", "beard": "stubble" },
+        { "first": "Josh", "last": "Calder", "num": 8, "pos": "SF", "h": 203, "w": 93, "ws": 213, "arch": "slasher", "ovr": 70, "skin": 3, "hair": "fade", "beard": "none" }
+      ]
+    },
+    {
+      "id": "DES", "city": "Desert", "name": "Suns of Mesa", "abbr": "DES",
+      "colors": { "home": ["#faf6ef", "#e2611b", "#2b1a5e"], "away": ["#2b1a5e", "#e2611b", "#faf6ef"], "alt": ["#e2611b", "#2b1a5e", "#faf6ef"] },
+      "court": { "paint": "#e2611b", "accent": "#2b1a5e" },
+      "style": "midrange-iso",
+      "players": [
+        { "first": "Kendrick", "last": "Ashford", "num": 35, "pos": "SF", "h": 211, "w": 109, "ws": 226, "arch": "scoringWing", "ovr": 93, "skin": 4, "hair": "short", "beard": "short" },
+        { "first": "Devon", "last": "Bellamy", "num": 1, "pos": "SG", "h": 196, "w": 88, "ws": 201, "arch": "scoringWing", "ovr": 85, "skin": 4, "hair": "fade", "beard": "none" },
+        { "first": "Chris", "last": "Pollard", "num": 3, "pos": "PG", "h": 183, "w": 79, "ws": 193, "arch": "playmaker", "ovr": 80, "skin": 3, "hair": "buzz", "beard": "short" },
+        { "first": "Royce", "last": "Whitman", "num": 4, "pos": "PF", "h": 201, "w": 104, "ws": 208, "arch": "stretchBig", "ovr": 75, "skin": 5, "hair": "buzz", "beard": "full" },
+        { "first": "Emir", "last": "Halilovic", "num": 20, "pos": "C", "h": 211, "w": 132, "ws": 218, "arch": "postScorer", "ovr": 78, "skin": 0, "hair": "short", "beard": "full" },
+        { "first": "Wes", "last": "Calloway", "num": 8, "pos": "SG", "h": 193, "w": 90, "ws": 196, "arch": "sharpshooter", "ovr": 76, "skin": 0, "hair": "short", "beard": "none" },
+        { "first": "Akol", "last": "Manyang", "num": 10, "pos": "C", "h": 221, "w": 100, "ws": 236, "arch": "stretchBig", "ovr": 71, "skin": 5, "hair": "twists", "beard": "none" },
+        { "first": "Quinn", "last": "Marlowe", "num": 23, "pos": "PG", "h": 188, "w": 83, "ws": 193, "arch": "playmaker", "ovr": 72, "skin": 4, "hair": "short", "beard": "stubble" },
+        { "first": "Ryan", "last": "Moorcroft", "num": 0, "pos": "SF", "h": 203, "w": 98, "ws": 216, "arch": "twoWay", "ovr": 71, "skin": 1, "hair": "long", "beard": "none" }
+      ]
+    },
+    {
+      "id": "HAR", "city": "Harbor", "name": "Admirals", "abbr": "HAR",
+      "colors": { "home": ["#ffffff", "#0a2342", "#c8102e"], "away": ["#0a2342", "#ffffff", "#c8102e"], "alt": ["#c8102e", "#ffffff", "#0a2342"] },
+      "court": { "paint": "#0a2342", "accent": "#c8102e" },
+      "style": "motion",
+      "players": [
+        { "first": "Luka", "last": "Varenik", "num": 77, "pos": "PG", "h": 201, "w": 104, "ws": 203, "arch": "playmaker", "ovr": 95, "skin": 0, "hair": "short", "beard": "short" },
+        { "first": "Kyrell", "last": "Ironside", "num": 11, "pos": "SG", "h": 188, "w": 88, "ws": 193, "arch": "slasher", "ovr": 86, "skin": 3, "hair": "short", "beard": "full", "acc": ["headband"] },
+        { "first": "Wilfried", "last": "Mbemba", "num": 1, "pos": "C", "h": 224, "w": 107, "ws": 244, "arch": "unicorn", "ovr": 90, "skin": 5, "hair": "twists", "beard": "none" },
+        { "first": "Terrell", "last": "Washburn", "num": 25, "pos": "SF", "h": 201, "w": 104, "ws": 211, "arch": "twoWay", "ovr": 76, "skin": 4, "hair": "buzz", "beard": "short" },
+        { "first": "Derrick", "last": "Sloane", "num": 2, "pos": "PF", "h": 213, "w": 104, "ws": 221, "arch": "athleticFinisher", "ovr": 77, "skin": 4, "hair": "short", "beard": "none" },
+        { "first": "Spencer", "last": "Haddix", "num": 26, "pos": "PG", "h": 196, "w": 95, "ws": 203, "arch": "playmaker", "ovr": 71, "skin": 3, "hair": "fade", "beard": "stubble" },
+        { "first": "Cal", "last": "Torrance", "num": 31, "pos": "SG", "h": 198, "w": 100, "ws": 206, "arch": "sharpshooter", "ovr": 78, "skin": 1, "hair": "short", "beard": "stubble" },
+        { "first": "Henrik", "last": "Stahl", "num": 42, "pos": "PF", "h": 208, "w": 109, "ws": 213, "arch": "stretchBig", "ovr": 72, "skin": 0, "hair": "short", "beard": "full" },
+        { "first": "Obi", "last": "Nwankwo", "num": 21, "pos": "C", "h": 208, "w": 107, "ws": 221, "arch": "rimProtector", "ovr": 74, "skin": 5, "hair": "buzz", "beard": "none" }
+      ]
+    }
+  ]
+}
