@@ -43,7 +43,7 @@ describe('full CPU vs CPU match', () => {
   });
 
   it('possession changes, rebounds, passes, fouls and the tip happen', () => {
-    expect(counts.tipWon).toBe(1);
+    expect(counts.tipWon).toBe(1 + Math.max(0, m.quarter - 4)); // one jump ball per overtime too
     expect(counts.possession).toBeGreaterThan(20);
     expect(counts.rebound).toBeGreaterThan(5);
     expect(counts.pass).toBeGreaterThan(30);

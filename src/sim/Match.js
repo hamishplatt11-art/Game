@@ -419,8 +419,9 @@ export class Match {
     this.quarter++;
     this.clock = this.periodLength();
     for (const t of sim.teams) { t.fouls = 0; t.foulsLast2 = 0; }
-    for (const p of sim.players) p.stamina = Math.min(1, p.stamina + 0.25);
-    for (const t of sim.teams) for (const p of t.roster) if (!p.onCourt) p.stamina = Math.min(1, p.stamina + 0.3);
+    // Break between periods (halftime is longer).
+    const brk = this.quarter === 3 ? 0.22 : 0.08;
+    for (const t of sim.teams) for (const p of t.roster) p.stamina = Math.min(1, p.stamina + (p.onCourt ? brk : brk * 1.5));
     this.processSubs(true);
     sim.emit('periodStart', { quarter: this.quarter });
     if (this.quarter > 4) {
@@ -762,7 +763,19 @@ export class Match {
       this.dead(1.2, () => this.setupInbound(team, this.inboundSpot(spot, team), 'out of bounds'));
       return;
     }
-    this.violation('out of bounds', lastTeam ?? this.possTeam, spot);
+    const last = lastTeam ?? this.possTeam;
+    if (this.phase === 'live' && last !== this.possTeam && this.possTeam !== null) {
+      // Defence touched it last (block, deflection, strip): offence keeps the ball, no turnover.
+      const team = this.possTeam;
+      this.sim.emit('whistle', { kind: 'oob' });
+      this.sim.emit('violationCalled', { label: 'Out Of Bounds', team: last });
+      this.pendingShootingFoul = null;
+      if (this.halfCourt) { this.dead(1.2, () => this.setupCheck(team)); return; }
+      const resetShot = Math.max(this.shotClock, 0);
+      this.dead(1.2, () => this.setupInbound(team, this.inboundSpot(spot, team), 'out of bounds', { resetShot: resetShot < 1 ? 1 : resetShot }));
+      return;
+    }
+    this.violation('out of bounds', last, spot);
     b.state = 'dead';
   }
 

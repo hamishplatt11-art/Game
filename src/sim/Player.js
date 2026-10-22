@@ -157,7 +157,7 @@ export class Player {
       const rate = (it.stance ? 7 : 5.5) + 3 * this.r('agility');
       this.facing = approachAngle(this.facing, face, rate * dt);
     }
-    this.updateStamina(dt, it.sprint && this.speed > 4);
+    this.updateStamina(dt, it.sprint && this.speed > 4.2, this.liveClock !== false);
   }
 
   integrate(dt) {
@@ -189,15 +189,31 @@ export class Player {
     return true;
   }
 
-  updateStamina(dt, sprinting) {
-    if (sprinting) {
-      this.stamina -= dt * 0.016 * (1.25 - 0.5 * this.r('stamina'));
-    } else if (this.speed < 2) {
-      this.stamina += dt * (0.006 + 0.003 * (this.badge('bounceBack') / 4));
+  /**
+   * Fatigue. Drain scales with exertion (standing < jogging < sprinting) and
+   * with `fatigueScale` (12 / quarter minutes) so shortened games still produce
+   * NBA-like rotations. Ratings and Bounce Back slow the drain.
+   */
+  updateStamina(dt, sprinting, live = true) {
+    const F = this.fatigueScale || 1;
+    if (!live) {
+      this.stamina += dt * 0.0018 * F; // dead balls: catch a breath
     } else {
-      this.stamina -= dt * 0.0012;
+      let e;
+      if (sprinting) e = 1.9;
+      else if (this.speed < 0.5) e = 0.22;
+      else e = 0.55 + 0.45 * Math.min(1, this.speed / this.jogMax());
+      if (this.airborne) e += 0.6;
+      const k = (1.3 - 0.6 * this.r('stamina')) * (1 - 0.06 * this.badge('bounceBack'));
+      this.stamina -= dt * 0.0016 * e * F * k;
     }
     this.stamina = clamp(this.stamina, 0.05, 1);
+  }
+
+  /** Bench recovery. */
+  rest(dt) {
+    const F = this.fatigueScale || 1;
+    this.stamina = Math.min(1, this.stamina + dt * (0.0017 + 0.0004 * this.badge('bounceBack')) * F);
   }
 
   /** Current hand height (m) for a given dribble style. */

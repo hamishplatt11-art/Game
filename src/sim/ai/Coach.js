@@ -98,30 +98,40 @@ export class Coach {
     }
   }
 
+  /**
+   * Rotations at legal stoppages: fatigue, foul trouble and getting rested
+   * starters back. Cooldowns are in game-scaled seconds so a player isn't
+   * yo-yoed on and off.
+   */
   substitutions(periodStart) {
     const sim = this.sim;
     const m = sim.match;
     const team = sim.teams[this.team];
+    const F = sim.fatigueScale || 1;
+    const cool = 260 / F;
+    const clutch = m.quarter >= 4 && m.clock < 150 && Math.abs(m.score[0] - m.score[1]) <= 8;
     const bench = () => team.roster.filter((p) => !p.onCourt && p.fouls < 6);
+    const busy = (p) => sim.ball.owner === p || (m.inb && m.inb.inbounder === p) || (m.ft && m.ft.shooter === p);
     for (const p of [...team.onCourt]) {
-      if (sim.ball.owner === p) continue;
-      if (sim.t - (p.subT ?? -999) < 150) continue;
-      if (m.inb && m.inb.inbounder === p) continue;
-      const foulTrouble = (m.quarter <= 2 && p.fouls >= m.quarter + 2) || (m.quarter === 3 && p.fouls >= 5);
-      const tired = p.stamina < 0.5;
+      if (busy(p)) continue;
+      if (sim.t - (p.subT ?? -999) < cool) continue;
+      const foulTrouble = !clutch && ((m.quarter <= 2 && p.fouls >= m.quarter + 2) || (m.quarter === 3 && p.fouls >= 5));
+      const tired = p.stamina < (clutch ? 0.38 : p.starter ? 0.6 : 0.66);
       if (!tired && !foulTrouble) continue;
-      const cands = bench().filter((q) => q.stamina > 0.75 && sim.t - (q.subT ?? -999) > 90);
+      const cands = bench().filter((q) => q.stamina > Math.max(0.8, p.stamina + 0.15) && sim.t - (q.subT ?? -999) > cool * 0.5);
       if (!cands.length) continue;
       const samePos = cands.filter((q) => q.pos === p.pos);
       const pool = samePos.length ? samePos : cands.filter((q) => posGroup(q.pos) === posGroup(p.pos));
-      const inP = (pool.length ? pool : cands).sort((a, b) => b.def.ovr - a.def.ovr)[0];
+      const inP = (pool.length ? pool : cands).sort((a, b) => (b.def.ovr + b.stamina * 10) - (a.def.ovr + a.stamina * 10))[0];
       m.swap(team, p, inP);
     }
-    // Get rested starters back in, especially late.
-    const late = m.quarter >= 4 || (m.clock < m.periodLength() * 0.45);
-    for (const st of team.roster.filter((p) => p.starter && !p.onCourt && p.fouls < 6 && p.stamina > (late ? 0.82 : 0.92))) {
-      if (sim.t - (st.subT ?? -999) < 120) continue;
-      const sub = team.onCourt.find((p) => !p.starter && posGroup(p.pos) === posGroup(st.pos) && sim.ball.owner !== p && !(m.inb && m.inb.inbounder === p) && sim.t - (p.subT ?? -999) > 120);
+    // Rested starters come back for reserves (always for crunch time).
+    for (const st of team.roster.filter((p) => p.starter && !p.onCourt && p.fouls < 6)) {
+      const ready = st.stamina > (clutch ? 0.55 : 0.9);
+      if (!ready || sim.t - (st.subT ?? -999) < cool * 0.6) continue;
+      const fouledOut = st.fouls >= 6;
+      if (fouledOut) continue;
+      const sub = team.onCourt.find((p) => !p.starter && posGroup(p.pos) === posGroup(st.pos) && !busy(p) && (clutch || sim.t - (p.subT ?? -999) > cool * 0.6 || p.stamina < 0.7));
       if (sub) m.swap(team, sub, st);
     }
   }

@@ -49,6 +49,10 @@ export class Simulation {
       };
     });
     for (const team of this.teams) this.pickStarters(team);
+    // Fatigue is scaled to the game length so short quarters still rotate players.
+    const mode = this.settings.mode;
+    this.fatigueScale = mode === 'practice' ? 0.5 : mode === 'blacktop' ? 1.5 : Math.max(1, Math.min(4, 12 / this.settings.quarterMin));
+    for (const t of this.teams) for (const p of t.roster) p.fatigueScale = this.fatigueScale;
     this.ball = {
       p: { x: 0, y: 1, z: 0 }, v: { x: 0, y: 0, z: 0 }, w: { x: 0, y: 0, z: 0 },
       state: 'dead', owner: null, air: null, lastTouch: null,
@@ -138,7 +142,9 @@ export class Simulation {
     if (this.user.player && input) this.applyUserInput(this.user.player, input);
     this.ai[0].update(dt);
     this.ai[1].update(dt);
-    for (const p of this.players) this.updatePlayer(p, dt);
+    const live = this.match.phase === 'live';
+    for (const p of this.players) { p.liveClock = live; this.updatePlayer(p, dt); }
+    for (const t of this.teams) for (const p of t.roster) if (!p.onCourt) p.rest(dt);
     this.resolveCollisions(dt);
     this.updateBall(dt);
     this.match.postUpdate(dt);
@@ -308,7 +314,13 @@ export class Simulation {
       if (act.face !== undefined && act.face !== null) {
         p.facing = approachAngle(p.facing, act.face, (act.faceRate || 12) * dt);
       }
-      p.updateStamina(dt, false);
+      p.updateStamina(dt, false, p.liveClock !== false);
+    }
+    // CPU ball handlers stop on the line instead of drifting out of bounds.
+    if (hasBall && p.ctrl !== 'user' && !p.inbounding && this.match.phase === 'live') {
+      const lx = HALF_L - 0.06, lz = HALF_W - 0.06;
+      if (Math.abs(p.x) > lx) { p.x = Math.sign(p.x) * lx; if (p.vx * Math.sign(p.x) > 0) p.vx = 0; }
+      if (Math.abs(p.z) > lz) { p.z = Math.sign(p.z) * lz; if (p.vz * Math.sign(p.z) > 0) p.vz = 0; }
     }
     p.balance = Math.min(1, p.balance + dt * 0.5);
     // Keep players inside the arena floor.
@@ -973,6 +985,9 @@ export class Simulation {
   // ---------------------------------------------------------------------
   resolveCollisions() {
     const ps = this.players;
+    // A ball handler standing in bounds can't be shoved out by contact alone.
+    const h = this.holder();
+    const hin = h && !h.inbounding && Math.abs(h.x) <= HALF_L - 0.02 && Math.abs(h.z) <= HALF_W - 0.02;
     for (let i = 0; i < ps.length; i++) {
       for (let j = i + 1; j < ps.length; j++) {
         const a = ps[i], c = ps[j];
@@ -1002,6 +1017,12 @@ export class Simulation {
         else this.onScreenContact(a, c);
       }
     }
+    if (hin && this.holder() === h) this.clampHolderInBounds(h);
+  }
+
+  clampHolderInBounds(h) {
+    h.x = clamp(h.x, -HALF_L + 0.03, HALF_L - 0.03);
+    h.z = clamp(h.z, -HALF_W + 0.03, HALF_W - 0.03);
   }
 
   onScreenContact() {}

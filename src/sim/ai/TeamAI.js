@@ -59,6 +59,18 @@ export class TeamAI {
     return { u: HALF_L - x * s, v: z };
   }
 
+  /** Live-ball change of possession in the last few seconds: run in transition. */
+  inTransition() {
+    const m = this.sim.match;
+    return !m.halfCourt && !m.practice && m.possTeam === this.team && ['rebound', 'steal', 'interception', 'loose', 'tip'].includes(m.possStartHow) && this.sim.t - m.possStartT < 6.5;
+  }
+
+  /** Number of defenders level with or behind the ball (between ball and basket). */
+  defendersBack(hoop, x) {
+    const s = hoopSign(hoop);
+    return this.opp.filter((d) => d.x * s > x * s - 0.5).length;
+  }
+
   /** A teammate the ball can legally be passed to (in bounds, not inbounding). */
   inPlay(q) {
     return !q.inbounding && Math.abs(q.x) < HALF_L - 0.3 && Math.abs(q.z) < HALF_W - 0.3;
@@ -459,10 +471,18 @@ export class TeamAI {
     const play = this.play || { type: 'motion' };
     let target = this.slotPos(p, hoop);
     let mode = 'jog';
-    // Transition: run the floor; sprint ahead of the ball.
-    if (inBackcourt && !m.halfCourt) {
+    // Transition: fill the lanes. Wings sprint wide toward the corners/rim,
+    // the trailer big runs to the rim or trails for a pick-and-pop.
+    const trans = this.inTransition();
+    if ((inBackcourt || trans) && !m.halfCourt) {
       mode = 'sprint';
-      if (p.pos === 'C' || p.pos === 'PF') target = this.toWorld(hoop, 2.6, p.slot % 2 ? 2.9 : -2.9);
+      const big = p.pos === 'C' || p.pos === 'PF';
+      const lane = p.slot % 2 ? 1 : -1;
+      if (trans) {
+        const ballU = this.toLocal(hoop, ballX, holder ? holder.z : 0).u;
+        if (big) target = this.toWorld(hoop, p.r('speed') > 0.55 ? 1.6 : Math.max(5, ballU - 3), lane * 1.2);
+        else target = this.toWorld(hoop, Math.max(1.2, Math.min(ballU - 2.5, 4.5)), lane * 5.8);
+      } else if (big) target = this.toWorld(hoop, 2.6, p.slot % 2 ? 2.9 : -2.9);
     }
     // Pick-and-roll screener.
     if (play.type === 'pnr' && play.screener === p && holder && !inBackcourt) {
@@ -672,6 +692,31 @@ export class TeamAI {
       plan.type = 'hold';
       plan.target = this.toWorld(hoop, 9.5, p.z);
       return;
+    }
+    if (this.inTransition()) {
+      // Outlet / hit-ahead: find a teammate ahead of the defence with a clean lane.
+      let ahead = null, best = 0;
+      for (const q of this.players) {
+        if (q === p || !this.inPlay(q)) continue;
+        const qd = distToHoop(q.x, q.z, hoop);
+        if (qd > dist - 3) continue;
+        const backD = this.opp.filter((d) => distToHoop(d.x, d.z, hoop) < qd + 1).length;
+        const val = this.laneSafety(p, q) * (backD === 0 ? 1.6 : backD === 1 ? 0.9 : 0.4) + (p.pos === 'C' || p.pos === 'PF' ? 0.3 : 0) - qd * 0.02;
+        if (val > best) { best = val; ahead = q; }
+      }
+      if (ahead && best > 0.85 && sim.t - p.lastCatchT > 0.25) {
+        sim.attemptPass(p, 'chest', ahead);
+        sim.emit('hitAhead', { player: p, to: ahead });
+        return;
+      }
+      // Numbers advantage: attack the rim before the defence sets.
+      const attackers = this.players.filter((q) => distToHoop(q.x, q.z, hoop) <= dist + 1).length;
+      const back = this.defendersBack(hoop, p.x);
+      if (back <= 1 || (back < attackers && p.r('drivingDunk') + p.r('layup') > 1.0)) {
+        plan.type = 'push';
+        plan.target = { x: h.x - s * 1.5, z: h.z };
+        return;
+      }
     }
     if (inBackcourt) {
       // Bring it up; push in transition when the defence isn't back.
