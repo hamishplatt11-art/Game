@@ -18,7 +18,7 @@ const BONE_KEYS = {
   thL: 'thigh_L', thR: 'thigh_R', shL: 'shin_L', shR: 'shin_R', ftL: 'foot_L', ftR: 'foot_R', toeL: 'toes_L', toeR: 'toes_R',
 };
 const BASE = {
-  hips: [0, 0, 0], spine: [0, 0, 0], chest: [0, 0, 0], neck: [0, 0, 0], head: [0, 0, 0],
+  hips: [0, 0, 0], spine: [0, 0, 0], chest: [0, 0, 0], neck: [6, 0, 0], head: [-4, 0, 0],
   clavL: [0, 0, 0], clavR: [0, 0, 0],
   uaL: [4, 0, 7], uaR: [4, 0, -7], faL: [-12, 0, 0], faR: [-12, 0, 0], hL: [0, 0, 0], hR: [0, 0, 0], fgL: [-15, 0, 0], fgR: [-15, 0, 0],
   thL: [0, 0, 1], thR: [0, 0, -1], shL: [3, 0, 0], shR: [3, 0, 0], ftL: [0, 0, 0], ftR: [0, 0, 0], toeL: [0, 0, 0], toeR: [0, 0, 0],

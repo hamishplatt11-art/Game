@@ -493,9 +493,10 @@ export function buildHuman(def, uniform, opts = {}) {
   for (let i = 0; i <= 5; i++) {
     const t = i / 5;
     const y = lerp(0.815 * H, 0.9 * H, t);
-    const r = (0.046 - 0.008 * t) * H * Math.min(1.12, g);
+    // ~12-13 cm wide on a 1.9 m athlete, flaring into the trapezius at the base.
+    const r = (lerp(0.0365, 0.031, t) + 0.016 * (1 - sstep(0, 0.32, t))) * H * Math.min(1.1, g);
     neckRings.push({
-      c: [0, y, lerp(-0.008, 0.0, t) * H], u: X, w: Z, rx: r, rz: r * 0.86, n: 2,
+      c: [0, y, lerp(-0.01, 0.002, t) * H], u: X, w: Z, rx: r, rz: r * 0.92, n: 2,
       mod: (a) => 1 + 0.06 * Math.max(0, Math.sin(a)) * bump(Math.abs(Math.cos(a)), 0.55, 0.25) * (1 - t), // sternocleidomastoid
       wts: t < 0.25 ? [['chest', 0.5], ['neck', 0.5]] : t > 0.8 ? [['neck', 0.4], ['head', 0.6]] : [['neck', 1]],
     });

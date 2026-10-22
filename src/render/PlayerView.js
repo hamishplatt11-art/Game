@@ -287,17 +287,18 @@ export class PlayerView {
    * pinned foot releases (takes a step) once the pose drifts too far from it.
    */
   applyLegIK(p, dt, shot, s) {
-    if (p.airborne || p.y > 0.02 || (shot && !shot.blendLoco)) {
+    if (p.airborne || p.y > 0.02) {
       this.footLock = null;
       return;
     }
-    const ankleH = 0.046 * this.H;
-    const standing = s < 0.2 && (this.turnStep || 0) < 0.12;
+    // Foot locks only while standing in a locomotion pose; ground alignment
+    // applies to every grounded frame (including jump wind-ups and landings).
+    const lockable = !shot || shot.blendLoco;
+    const standing = lockable && s < 0.2 && (this.turnStep || 0) < 0.12;
     if (!this.footLock) this.footLock = { L: null, R: null, wL: 0, wR: 0 };
     const FL = this.footLock;
-    const fwd = _v4.set(Math.cos(p.facing), 0, Math.sin(p.facing));
     for (const sd of ['L', 'R']) {
-      const th = this.bones[`thigh_${sd}`], sh = this.bones[`shin_${sd}`], ft = this.bones[`foot_${sd}`];
+      const ft = this.bones[`foot_${sd}`];
       const anim = ft.getWorldPosition(new THREE.Vector3());
       if (standing) {
         if (!FL[sd] || Math.hypot(FL[sd].x - anim.x, FL[sd].z - anim.z) > 0.16) FL[sd] = anim.clone();
@@ -308,15 +309,55 @@ export class PlayerView {
       }
       const target = anim.clone();
       if (FL[sd]) { target.x += (FL[sd].x - target.x) * FL[`w${sd}`]; target.z += (FL[sd].z - target.z) * FL[`w${sd}`]; }
-      if (target.y < ankleH) target.y = ankleH;
-      if (target.distanceToSquared(anim) < 1e-6) continue;
+      this.groundFoot(sd, target, p.facing);
+    }
+  }
+
+  /**
+   * Place one ankle at `target` (raised to ankle height if it is below the
+   * floor) with two-bone IK, keep the clip's foot orientation, then roll the
+   * foot about the ankle so the toe joint never sinks under the floor.
+   */
+  groundFoot(sd, target, facing) {
+    const th = this.bones[`thigh_${sd}`], sh = this.bones[`shin_${sd}`], ft = this.bones[`foot_${sd}`], to = this.bones[`toes_${sd}`];
+    const ankleH = 0.046 * this.H, toeH = 0.013 * this.H;
+    const anim = ft.getWorldPosition(new THREE.Vector3());
+    if (target.y < ankleH) target.y = ankleH;
+    if (target.distanceToSquared(anim) > 1e-6) {
       const footQ = ft.getWorldQuaternion(new THREE.Quaternion());
-      const pole = _v3.copy(fwd).multiplyScalar(1).add(_v2.set(0, 0.15, 0));
+      const pole = new THREE.Vector3(Math.cos(facing), 0.15, Math.sin(facing));
       this.solveTwoBone(th, sh, ft, target, pole, 1, 0);
-      // Keep the sole's world orientation from the clip (flat on the floor).
       ft.parent.getWorldQuaternion(_q3).invert();
       ft.quaternion.copy(_q3.multiply(footQ));
       ft.updateMatrixWorld(true);
+    }
+    // Toe roll.
+    const a = ft.getWorldPosition(new THREE.Vector3());
+    const t = to.getWorldPosition(new THREE.Vector3());
+    if (t.y < toeH) {
+      const d = t.clone().sub(a);
+      const len = d.length();
+      const h = Math.hypot(d.x, d.z);
+      const wantY = Math.min(len * 0.95, toeH - a.y);
+      const want = new THREE.Vector3(d.x, 0, d.z).multiplyScalar(h > 1e-5 ? Math.sqrt(Math.max(0, len * len - wantY * wantY)) / h : 0);
+      want.y = wantY;
+      _q1.setFromUnitVectors(d.normalize(), want.normalize());
+      const fw = ft.getWorldQuaternion(new THREE.Quaternion());
+      ft.parent.getWorldQuaternion(_q3).invert();
+      ft.quaternion.copy(_q3.multiply(_q1.multiply(fw)));
+      ft.updateMatrixWorld(true);
+    }
+    // Toes stay above the floor too (flatten a curled toe box).
+    const tip = to.localToWorld(new THREE.Vector3(0, 0, 0.05 * this.H));
+    const tj = to.getWorldPosition(new THREE.Vector3());
+    if (tip.y < 0.006 * this.H) {
+      const d = tip.clone().sub(tj);
+      const want = d.clone(); want.y = Math.max(d.y, 0.006 * this.H - tj.y);
+      _q1.setFromUnitVectors(d.normalize(), want.normalize());
+      const tw = to.getWorldQuaternion(new THREE.Quaternion());
+      to.parent.getWorldQuaternion(_q3).invert();
+      to.quaternion.copy(_q3.multiply(_q1.multiply(tw)));
+      to.updateMatrixWorld(true);
     }
   }
 
