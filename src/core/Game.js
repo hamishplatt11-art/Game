@@ -189,6 +189,13 @@ export class Game {
     if (this.contextLost) { this.last = now; return; }
     this.last = now;
     this.input.pollPad(now);
+    if (this.input.padLost) {
+      this.input.padLost = false;
+      if (!this.paused && this.sim.match.phase !== 'pregame' && !this.replay) {
+        this.setPaused(true);
+        this.hud.toast('Controller disconnected — game paused');
+      }
+    }
     const ui = this.input.ui();
     if (ui.pause && this.sim.match.phase !== 'pregame' && !this.replay) {
       const ov = this.hud.overlay;

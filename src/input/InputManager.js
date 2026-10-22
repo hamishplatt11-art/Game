@@ -44,7 +44,11 @@ export class InputManager {
         cb(e.code);
         return;
       }
-      if (['Tab', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code) && !isTyping(e)) e.preventDefault();
+      // Typing in a text field (MyPLAYER name, etc.) never drives the game.
+      if (isTyping(e)) return;
+      if (['Tab', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+      // Modifier chords (Cmd+Tab, Cmd+R...) can swallow the keyup on macOS: don't latch them.
+      if (e.metaKey && e.code !== 'MetaLeft' && e.code !== 'MetaRight') return;
       if (!this.keys.has(e.code)) this.pressed.add(e.code);
       this.keys.add(e.code);
     };
@@ -52,10 +56,13 @@ export class InputManager {
       this.keys.delete(e.code);
       this.released.add(e.code);
     };
-    this.onBlur = () => { this.keys.clear(); };
+    // Releasing every key on blur / tab switch prevents "stuck" movement.
+    this.onBlur = () => { this.releaseAll(); };
+    this.onVis = () => { if (document.hidden) this.releaseAll(); };
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
     window.addEventListener('blur', this.onBlur);
+    document.addEventListener('visibilitychange', this.onVis);
     this.flickQueue = [];
     this.pendingPresses = new Set();
   }
@@ -64,6 +71,13 @@ export class InputManager {
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
     window.removeEventListener('blur', this.onBlur);
+    document.removeEventListener('visibilitychange', this.onVis);
+  }
+
+  releaseAll() {
+    for (const k of this.keys) this.released.add(k);
+    this.keys.clear();
+    this.pressed.clear();
   }
 
   loadBindings() {
@@ -83,12 +97,36 @@ export class InputManager {
     this.saveBindings();
   }
 
+  /**
+   * Bind `action` to the next key pressed. Escape cancels. If the key already
+   * belongs to another action the two swap, so no key ever triggers two
+   * actions and no action is left unbound. cb(code, swappedWith|null).
+   */
   rebind(action, cb) {
     this.rebinding = (code) => {
+      if (code === 'Escape') { cb(null, null); return; }
+      const old = this.bindings[action] || [];
+      let swapped = null;
+      for (const [a, keys] of Object.entries(this.bindings)) {
+        if (a === action || !keys.includes(code)) continue;
+        const rest = keys.filter((k) => k !== code);
+        this.bindings[a] = rest.length ? rest : old.filter((k) => k !== code).slice(0, 1);
+        swapped = a;
+      }
       this.bindings[action] = [code];
       this.saveBindings();
-      cb(code);
+      cb(code, swapped);
     };
+  }
+
+  /** Keys bound to more than one action (should always be empty). */
+  conflicts() {
+    const seen = {}, out = [];
+    for (const [a, keys] of Object.entries(this.bindings)) for (const k of keys) {
+      if (seen[k] && seen[k] !== a) out.push([k, seen[k], a]);
+      seen[k] = a;
+    }
+    return out;
   }
 
   held(action) {
@@ -107,6 +145,12 @@ export class InputManager {
     let gp = null;
     for (const p of pads) if (p && p.connected) { gp = p; break; }
     const P = this.pad;
+    if (P.connected && !gp) {
+      // Controller lost: zero its state so nothing stays held, and flag it
+      // so the game can pause.
+      P.buttons = []; P.prev = []; P.axes = [0, 0, 0, 0]; P.rsState = null; P.rsHistory = [];
+      this.padLost = true;
+    }
     P.connected = !!gp;
     if (!gp) return;
     P.id = gp.id;

@@ -321,6 +321,12 @@ export class HUD {
         <div class="pg-vs"><span>VS</span><small>${sim.diff.name} · ${sim.settings.quarterMin} MIN QUARTERS</small></div>
         <div class="pg-team" style="--tc:${H.raw.colors.home[1]}"><h2>${esc(H.raw.city)}</h2><h1>${esc(H.raw.name)}</h1><ul>${lineup(H)}</ul></div>
       </div>
+      <div class="pg-basics">
+        <div><b>Move</b> WASD / left stick · <b>Sprint</b> Shift / RT</div>
+        <div><b>Shoot</b> hold J / X, release at the top of the jump (meter turns green)</div>
+        <div><b>Pass</b> K / A · <b>Dribble moves</b> arrow keys / right stick · <b>Protect &amp; strafe</b> hold C / LT</div>
+        <div><b>Defence</b> C stance · F steal · Space block · Tab / A switch player</div>
+      </div>
       <div class="pg-cta">Press <kbd>Enter</kbd> / <kbd>A</kbd> to tip off</div>`, true);
     const go = () => { window.removeEventListener('keydown', key); onStart(); };
     const key = (e) => { if (e.code === 'Enter' || e.code === 'Space') go(); };

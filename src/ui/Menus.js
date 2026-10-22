@@ -420,8 +420,11 @@ export class Menus {
         const b = e.target.closest('button');
         if (!b) return;
         if (b.dataset.rebind) {
-          b.textContent = 'Press a key…';
-          inp.rebind(b.dataset.rebind, () => render());
+          b.textContent = 'Press a key… (Esc cancels)';
+          inp.rebind(b.dataset.rebind, (code, swapped) => {
+            render();
+            if (swapped) this.notice(`${code} was used by "${ACTIONS[swapped]}" — that action now uses ${inp.bindings[swapped].join(', ') || 'no key'}.`);
+          });
         } else if (b.dataset.a === 'reset') { inp.resetBindings(); render(); }
         else if (b.dataset.a === 'back') this.main();
       });
