@@ -96,6 +96,9 @@ with the player card over the score bug.
 - Audio: limiter, mute and contextual crowd/commentary; all sound is still synthesised and not positional.
 - Performance: Low preset roughly halves triangles. 60 FPS on Apple Silicon is unmeasured.
 
+**Dependencies**
+- `npm audit fix` moved Vite to 7.3.7, which patches the dev-server path-traversal advisory. `npm audit` still reports advisories in vitest 3's internals (`@vitest/mocker`, `tinypool`). These are used only when running unit tests. The fix is vitest 4, but npm 10.9 currently fails to install vitest 4 here (`Cannot read properties of null (reading 'edgesOut')`), so vitest 3 is kept. Nothing from these packages ships in the game build.
+
 **Not implemented**
 - MyCAREER / offline career demo, Franchise, online multiplayer.
 - Pro Stick aiming and tempo tick, per-player hot/cold zones, configurable meter position.

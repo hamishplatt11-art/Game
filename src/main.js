@@ -12,6 +12,8 @@ import { Arena } from './render/Arena.js';
 import { CameraSystem } from './render/CameraSystem.js';
 import { detectGraphics, autoQuality, browserName } from './core/Platform.js';
 import { DebugHud } from './ui/DebugHud.js';
+import { PlayerView } from './render/PlayerView.js';
+import { Player } from './sim/Player.js';
 
 class App {
   constructor() {
@@ -110,8 +112,6 @@ class App {
   /** Show a generated player at centre court in the menu scene (MyPLAYER builder). */
   async showMenuPreview(def, colors) {
     if (!this.menuRenderer) return;
-    const { PlayerView } = await import('./render/PlayerView.js');
-    const { Player } = await import('./sim/Player.js');
     this.hideMenuPreview();
     const p = new Player(def, 0, true);
     p.onCourt = true;
