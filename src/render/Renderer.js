@@ -83,10 +83,14 @@ export class Renderer {
     if (!window.matchMedia) return;
     const mq = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
     this.dprListener = () => {
+      if (!this.renderer) return;
       this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.q.pixelRatio));
       this.resize();
       this.watchDpr();
     };
+    // Kept so dispose() can detach it: a live MediaQueryList listener would
+    // otherwise keep this renderer (and its whole scene) reachable forever.
+    this.dprMq = mq;
     mq.addEventListener?.('change', this.dprListener, { once: true });
   }
 
@@ -130,6 +134,8 @@ export class Renderer {
   dispose() {
     window.removeEventListener('resize', this.onResize);
     this.ro?.disconnect();
+    this.dprMq?.removeEventListener?.('change', this.dprListener);
+    this.dprMq = null;
     const r = this.renderer;
     r.domElement.removeEventListener('webglcontextlost', this.onLost);
     r.domElement.removeEventListener('webglcontextrestored', this.onRestored);

@@ -44,7 +44,7 @@ export function needsSoftwareGL() {
   return !fs.existsSync('/dev/dri');
 }
 
-export async function launchBrowser(extra = {}) {
+export async function launchBrowser({ extraArgs = [], ...extra } = {}) {
   const executablePath = findChrome();
   const sw = needsSoftwareGL();
   const args = sw
@@ -52,7 +52,7 @@ export async function launchBrowser(extra = {}) {
     : ['--ignore-gpu-blocklist', '--enable-gpu-rasterization'];
   const headless = process.env.HEADED ? false : true;
   // Headless Chrome on macOS still uses the Metal GPU through ANGLE.
-  const browser = await chromium.launch({ executablePath, headless, args, ...extra });
+  const browser = await chromium.launch({ executablePath, headless, args: [...args, ...extraArgs], ...extra });
   browser.__info = { executablePath, softwareGL: sw };
   return browser;
 }

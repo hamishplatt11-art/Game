@@ -370,7 +370,7 @@ export class Arena {
   buildCrowd(seats) {
     const r = rng(7);
     let list = seats;
-    const max = this.quality === 'low' ? 1800 : this.quality === 'medium' ? 4000 : 9000;
+    const max = this.quality === 'low' ? 1100 : this.quality === 'medium' ? 4000 : 9000;
     if (list.length > max) list = list.filter(() => r() < max / seats.length);
     // Seated spectator: legs, torso, arms (merged), separate head mesh.
     const torso = new THREE.BoxGeometry(0.42, 0.52, 0.24); torso.translate(0, 0.62, 0);
@@ -379,7 +379,8 @@ export class Arena {
     const armL = new THREE.BoxGeometry(0.1, 0.46, 0.12); armL.translate(0.26, 0.62, -0.02);
     const armR = armL.clone(); armR.translate(-0.52, 0, 0);
     const bodyGeo = mergeGeometries([torso, legs, shins, armL, armR]);
-    const headGeo = new THREE.SphereGeometry(0.11, 8, 6); headGeo.translate(0, 1.0, -0.02);
+    const headGeo = this.quality === 'low' ? new THREE.IcosahedronGeometry(0.11, 0) : new THREE.SphereGeometry(0.11, 8, 6);
+    headGeo.translate(0, 1.0, -0.02);
     const mkMat = (base) => {
       const m = new THREE.MeshLambertMaterial({ color: base });
       m.onBeforeCompile = (sh) => {

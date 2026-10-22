@@ -507,7 +507,9 @@ export function buildHuman(def, uniform, opts = {}) {
   const sc = makeSculptor(H, variant);
   const headC = [0, 0.926 * H, 0.006 * H];
   const headSG = new SkinGeo();
-  headSG.mesh(sculptedSphere(sc), () => [['head', 1]], (v) => v.set(v.x + headC[0], v.y + headC[1], v.z + headC[2]));
+  // Level of detail: the sculpted head, hair and beard are the densest meshes.
+  const lod = quality === 'low' ? [28, 20] : quality === 'medium' ? [38, 28] : [48, 36];
+  headSG.mesh(sculptedSphere(sc, lod[0], lod[1]), () => [['head', 1]], (v) => v.set(v.x + headC[0], v.y + headC[1], v.z + headC[2]));
   // Ears: flattened shells set against the skull.
   for (const k of [1, -1]) {
     const ear = new THREE.SphereGeometry(1, 12, 10);
@@ -555,10 +557,10 @@ export function buildHuman(def, uniform, opts = {}) {
   addMesh(eyeSG.build(), cachedMat('eye', () => new THREE.MeshPhysicalMaterial({ map: eyeTexture(), roughness: 0.08, clearcoat: 1 })), 'eyes');
 
   // --- Hair and facial hair grown from the sculpted head surface ------------
-  const hair = buildHair(def.hair, sc, headC);
+  const hair = buildHair(def.hair, sc, headC, lod);
   if (hair) addMesh(hair, cachedMat(`hair-${def.hair}-${quality}`, () => new THREE.MeshStandardMaterial({ color: 0xffffff, map: makeHairTexture(def.hair), roughness: 0.85, alphaTest: 0.3, side: THREE.DoubleSide })), 'hair');
   if (def.beard === 'full' || def.beard === 'short') {
-    addMesh(buildBeard(def.beard, sc, headC), cachedMat(`beard-${quality}`, () => new THREE.MeshStandardMaterial({ color: 0xffffff, map: makeHairTexture('beard'), roughness: 0.9, alphaTest: 0.3, side: THREE.DoubleSide })), 'beard');
+    addMesh(buildBeard(def.beard, sc, headC, lod), cachedMat(`beard-${quality}`, () => new THREE.MeshStandardMaterial({ color: 0xffffff, map: makeHairTexture('beard'), roughness: 0.9, alphaTest: 0.3, side: THREE.DoubleSide })), 'beard');
   }
 
   // --- Uniform -------------------------------------------------------------
@@ -634,7 +636,7 @@ export function buildHuman(def, uniform, opts = {}) {
   return { group, skeleton, bones, meshes, H, J, g, headC };
 }
 
-function buildHair(style, sc, headC) {
+function buildHair(style, sc, headC, lod = [48, 36]) {
   if (!style || style === 'bald') return null;
   const P = {
     buzz: { s: 1.012, top: 1.02, line: 0.36 },
@@ -645,7 +647,7 @@ function buildHair(style, sc, headC) {
     braids: { s: 1.025, top: 1.04, line: 0.34 },
     long: { s: 1.05, top: 1.1, line: 0.34, long: true },
   }[style] || { s: 1.03, top: 1.08, line: 0.38 };
-  const geo = sculptedSphere(sc, 44, 32, (x, y, z) => {
+  const geo = sculptedSphere(sc, Math.round(lod[0] * 0.92), Math.round(lod[1] * 0.9), (x, y, z) => {
     // Hairline: forehead, temples, around the ears, nape.
     const front = z > 0;
     const lim = front ? P.line - 0.35 * (1 - Math.min(1, z * 1.2)) * (Math.abs(x) > 0.55 ? 1 : 0.5) : -0.55 + Math.max(0, -z) * 0.05;
@@ -670,9 +672,9 @@ function buildHair(style, sc, headC) {
   return sg.build();
 }
 
-function buildBeard(style, sc, headC) {
+function buildBeard(style, sc, headC, lod = [48, 36]) {
   const k = style === 'full' ? 1.05 : 1.025;
-  const geo = sculptedSphere(sc, 44, 32, (x, y, z) => {
+  const geo = sculptedSphere(sc, Math.round(lod[0] * 0.92), Math.round(lod[1] * 0.9), (x, y, z) => {
     if (z < -0.35 || y > -0.1) return 0.85;
     // Keep the lips, nose and upper cheeks clear.
     if (Math.abs(x) < 0.3 && y > -0.56 && y < -0.33 && z > 0.6) return 0.85;
