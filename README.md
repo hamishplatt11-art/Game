@@ -36,6 +36,16 @@ npm run preview          # serves dist/ at http://localhost:4173
 Opening `index.html` straight from Finder does not work: ES modules need the
 local server above. The same commands work on Windows and Linux.
 
+**If `npm install` fails with `UNABLE_TO_GET_ISSUER_CERT_LOCALLY`:** your
+network or security software is re-signing HTTPS traffic, and Node doesn't
+trust its certificate. Run `npm config get cafile` and
+`npm config get strict-ssl`, and remove stale settings with
+`npm config delete cafile` / `npm config set strict-ssl true`. Then try
+`NODE_OPTIONS=--use-system-ca npm install` (Node 22.15+/23.8+; this trusts
+your macOS Keychain), try another network, or point npm at the
+organisation's root certificate with `npm config set cafile /path/to/root.pem`.
+`vite: command not found` just means the install didn't finish.
+
 **Graphics quality.** Settings → Graphics → Quality defaults to **Auto**, which
 picks a preset from the detected GPU (Apple M-series → High, integrated →
 Medium, software rendering → Low). If the browser has no WebGL2 or is using a
