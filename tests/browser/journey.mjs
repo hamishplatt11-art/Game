@@ -89,6 +89,26 @@ metrics.perf = await page.evaluate(() => {
   return { fps: +P.fps.toFixed(1), frameMedMs: +(s[Math.floor(s.length / 2)] || 0).toFixed(1), frameP95Ms: +(s[Math.floor(s.length * 0.95)] || 0).toFixed(1), simMs: +P.simMs.toFixed(2), renderMs: +P.renderMs.toFixed(2), drawCalls: P.calls, triangles: P.tris, geometries: P.geos, textures: P.texs, heapMB: P.heap, quality: g.renderer.qualityName, pixelRatio: g.renderer.renderer.getPixelRatio() };
 });
 console.log('PERF', JSON.stringify(metrics.perf));
+// Every character (players + officials) upright, grounded or airborne within limits, no NaN.
+const posture = await page.evaluate(() => {
+  const g = window.__app.game;
+  g.paused = true;
+  g.fastForward(20);
+  for (let i = 0; i < 120; i++) g.renderFrame(1 / 60, 1);
+  g.paused = false;
+  const views = [...g.views.values(), ...(g.refs ? g.refs.refs.map((r) => r.view) : [])];
+  const bad = [];
+  for (const v of views) {
+    if (!v.root.visible) continue;
+    const up = v.bones.hips.getWorldQuaternion(new v.root.quaternion.constructor()).toArray();
+    const [x, y, z, w] = up;
+    const upY = 1 - 2 * (x * x + z * z); // hips local +Y in world
+    const hy = v.bones.head.matrixWorld.elements[13];
+    if (!(upY > 0.6) || !Number.isFinite(hy) || hy < 0.8) bad.push({ name: v.p.name, upY: +upY.toFixed(2), headY: +hy.toFixed(2) });
+  }
+  return { checked: views.length, bad };
+});
+check('all players and officials upright after 20 s of play', posture.bad.length === 0, JSON.stringify(posture));
 await shot('play');
 
 // ---------------------------------------------------------------- resize

@@ -164,7 +164,13 @@ export class PlayerView {
         act.enabled = true;
       }
     }
+    // three.js only writes a bone when its blended value changed since the last
+    // frame, so procedural layers (lean, foot/arm IK) would otherwise compound
+    // on frames where the clip pose is unchanged. Restore the last clip pose
+    // first, let the mixer write any change, then snapshot the clean pose.
+    this.restoreClipPose();
     this.mixer.update(0);
+    this.snapshotClipPose();
     this.root.updateMatrixWorld(true);
     this.applyBodyDynamics(p, dt, shot, stance);
     this.applyLegIK(p, dt, shot, s);
@@ -235,6 +241,16 @@ export class PlayerView {
       case 'catch': return { name: 'catch', time: (a.t / a.dur) * clip('catch'), blendLoco: 0.7 };
       default: return null;
     }
+  }
+
+  snapshotClipPose() {
+    if (!this.clipPose) this.clipPose = Object.values(this.bones).map((b) => ({ b, q: b.quaternion.clone(), p: b.position.clone() }));
+    else for (const e of this.clipPose) { e.q.copy(e.b.quaternion); e.p.copy(e.b.position); }
+  }
+
+  restoreClipPose() {
+    if (!this.clipPose) return;
+    for (const e of this.clipPose) { e.b.quaternion.copy(e.q); e.b.position.copy(e.p); }
   }
 
   // -------------------------------------------------------------------------
