@@ -18,6 +18,14 @@ export class Menus {
   }
 
   clear() { this.root.innerHTML = ''; this.stopPadTest(); }
+
+  notice(text) {
+    const n = document.createElement('div');
+    n.className = 'notice';
+    n.innerHTML = `<span>${esc(text)}</span><button>OK</button>`;
+    n.querySelector('button').onclick = () => n.remove();
+    this.root.appendChild(n);
+  }
   hide() { this.clear(); this.root.style.display = 'none'; }
   show() { this.root.style.display = ''; }
 
@@ -41,7 +49,7 @@ export class Menus {
         <button data-go="playnow" class="big"><b>PLAY NOW</b><span>Full 5-on-5 game · pick teams, uniforms, difficulty</span></button>
         <button data-go="blacktop" class="big"><b>BLACKTOP</b><span>1v1 – 5v5 streetball, game to 11/15/21</span></button>
         <button data-go="practice" class="big"><b>PRACTICE</b><span>Shot timing, dribble combos, finishing</span></button>
-        <button data-go="builder" class="big"><b>MyPLAYER BUILDER</b><span>Create a player (size, skills, jumper) · use him in Practice &amp; Blacktop</span></button>
+        <button data-go="builder" class="big"><b>MyPLAYER BUILDER</b><span>Create a player (size, skills, jumper) · use them in Practice &amp; Blacktop</span></button>
         <button class="big locked" disabled><b>MyCAREER</b><span>In development — not playable yet</span></button>
         <button class="big locked" disabled><b>FRANCHISE</b><span>In development — not playable yet</span></button>
         <button class="big locked" disabled><b>ONLINE</b><span>Not implemented (no networking yet)</span></button>
@@ -326,12 +334,15 @@ export class Menus {
         <h1 class="screen-title">SETTINGS</h1>
         <div class="settings-grid">
           <section><h3>Graphics</h3>
-            <div><label>Quality</label>${opt('quality', [['low', 'Low'], ['medium', 'Medium'], ['high', 'High'], ['ultra', 'Ultra']])}</div>
+            <div><label>Quality</label>${opt('quality', [['auto', `Auto (${this.app.resolveQuality('auto')})`], ['low', 'Low'], ['medium', 'Medium'], ['high', 'High'], ['ultra', 'Ultra']])}</div>
+            <p class="muted">GPU: ${esc(this.app.gfx.renderer)}${this.app.gfx.software ? ' — <b style="color:var(--red)">software rendering</b>' : ''}</p>
             <p class="muted">Ultra adds a mirrored floor reflection pass and 4K shadows. Applies to the next game.</p>
             <div><label>Performance overlay</label>${opt('perfOverlay', [['true', 'On'], ['false', 'Off']])}</div>
+            <div><label>Developer debug HUD (F3)</label>${opt('debugHud', [['true', 'On'], ['false', 'Off']])}</div>
           </section>
           <section><h3>Audio</h3>${slider('master', 'Master')}${slider('music', 'Music')}${slider('crowd', 'Crowd')}${slider('sfx', 'Gameplay SFX')}${slider('commentary', 'Commentary')}
-            <div><label>Spoken commentary (browser TTS)</label>${opt('voice', [['true', 'On'], ['false', 'Off']])}</div></section>
+            <div><label>Spoken commentary (browser TTS)</label>${opt('voice', [['true', 'On'], ['false', 'Off']])}</div>
+            <div><label>Mute all</label>${opt('muted', [['true', 'Muted'], ['false', 'Sound on']])}</div></section>
           <section><h3>Gameplay</h3>
             <div><label>Shot meter</label>${opt('shotMeter', [['true', 'On'], ['false', 'Off']])}</div>
             <div><label>Shot feedback</label>${opt('shotFeedback', [['full', 'Full'], ['basic', 'Basic'], ['all', 'All players'], ['off', 'Off']])}</div>
@@ -354,6 +365,8 @@ export class Menus {
           const v = b.dataset.v;
           st[b.dataset.k] = v === 'true' ? true : v === 'false' ? false : v;
           this.app.settings.save();
+          this.app.audio.applyVolumes();
+          if (b.dataset.k === 'quality') { this.app.rebuildMenuScene(); return; }
           render();
         } else if (b.dataset.a === 'back') this.main();
       });

@@ -64,7 +64,10 @@ export class Game {
       if (!cfg.defender) { this.sim.teams[1].onCourt = []; this.sim.teams[1].roster.forEach((p) => { p.onCourt = false; }); }
     }
     await tick('Simulation');
-    this.renderer = new Renderer(container, quality);
+    this.renderer = new Renderer(container, this.app.resolveQuality(quality), {
+      onContextLost: () => { this.contextLost = true; this.hud?.showContextLost(); },
+      onContextRestored: () => { this.contextLost = false; this.hud?.hideContextLost(); },
+    });
     this.scene = this.renderer.scene;
     await tick('Renderer');
     this.arena = new Arena(this.scene, {
@@ -113,6 +116,16 @@ export class Game {
       this.hud.showPregame(() => this.beginPlay());
     } else this.beginPlay();
     this.last = performance.now();
+    // Leaving the tab pauses the match; returning never replays the time away.
+    this.onVisibility = () => {
+      if (document.hidden) {
+        if (!this.paused && !this.hud.modalOpen() && this.sim.match.phase !== 'pregame') this.setPaused(true);
+      } else {
+        this.last = performance.now();
+        this.acc = 0;
+      }
+    };
+    document.addEventListener('visibilitychange', this.onVisibility);
     const loop = (now) => {
       if (!this.running) return;
       this.raf = requestAnimationFrame(loop);
@@ -134,11 +147,13 @@ export class Game {
   stop() {
     this.running = false;
     cancelAnimationFrame(this.raf);
+    document.removeEventListener('visibilitychange', this.onVisibility);
     this.audio.stopCrowd();
     if (this.hud) this.hud.dispose();
-    if (this.renderer) this.renderer.dispose();
     for (const v of this.views.values()) v.dispose();
     this.views.clear();
+    if (this.renderer) this.renderer.dispose();
+    this.renderer = null;
   }
 
   /** Debug/testing: advance the simulation without rendering (used by automated browser tests). */
@@ -170,7 +185,8 @@ export class Game {
   // -------------------------------------------------------------------------
   frame(now) {
     const t0 = performance.now();
-    let dt = Math.min(0.1, (now - this.last) / 1000);
+    let dt = Math.max(0, Math.min(0.1, (now - this.last) / 1000));
+    if (this.contextLost) { this.last = now; return; }
     this.last = now;
     this.input.pollPad(now);
     const ui = this.input.ui();

@@ -1,27 +1,16 @@
 // Browser smoke test: serves the production build, drives the real game in
 // Chromium (WebGL via SwiftShader when no GPU), records console errors and
 // screenshots, and checks that a 5v5 match is playable from the menu.
-import { chromium } from 'playwright-core';
+import { launchBrowser } from './launch.mjs';
 import { startServer } from './server.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 
 const out = path.resolve('tests/browser/out');
 fs.mkdirSync(out, { recursive: true });
-const exe = process.env.CHROME || findChrome();
-function findChrome() {
-  const base = '/opt/pw-browsers';
-  for (const d of fs.readdirSync(base)) {
-    for (const rel of ['chrome-linux/chrome', 'chrome-linux64/chrome']) {
-      const p = path.join(base, d, rel);
-      if (fs.existsSync(p)) return p;
-    }
-  }
-  throw new Error('chromium not found');
-}
 
 const server = await startServer(5199);
-const browser = await chromium.launch({ executablePath: exe, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const browser = await launchBrowser();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });

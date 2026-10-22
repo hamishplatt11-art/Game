@@ -10,6 +10,8 @@ import { Game } from './core/Game.js';
 import { Renderer } from './render/Renderer.js';
 import { Arena } from './render/Arena.js';
 import { CameraSystem } from './render/CameraSystem.js';
+import { detectGraphics, autoQuality, browserName } from './core/Platform.js';
+import { DebugHud } from './ui/DebugHud.js';
 
 class App {
   constructor() {
@@ -19,24 +21,68 @@ class App {
     this.settings = new Settings();
     this.input = new InputManager();
     this.audio = new AudioSystem(this.settings.data);
+    this.gfx = detectGraphics();
     this.menus = new Menus(this);
     this.game = null;
+    this.debug = new DebugHud(this);
     const unlock = () => { this.audio.ensure(); };
     window.addEventListener('pointerdown', unlock);
     window.addEventListener('keydown', unlock);
     window.__app = this;
   }
 
+  /** 'auto' -> a preset chosen from the detected GPU. */
+  resolveQuality(q = this.settings.data.quality) {
+    return q === 'auto' || !q ? autoQuality(this.gfx) : q;
+  }
+
   async boot() {
+    if (!this.gfx.webgl2) {
+      this.showFatal('WebGL2 is not available', `${browserName()} did not give the page a WebGL2 context. Hardwood 27 needs WebGL2 with hardware acceleration.<br><br>
+        <b>Chrome:</b> Settings → System → turn on "Use graphics acceleration when available", then relaunch.<br>
+        <b>Safari:</b> use Safari 15 or newer (WebGL2 is on by default).<br>
+        <b>Firefox:</b> about:support → check that WebGL 2 is enabled.`, false);
+      return;
+    }
     const ld = this.menus.loading('Building arena');
-    await this.buildMenuScene((f, l) => ld.set(f, l));
+    try {
+      await this.buildMenuScene((f, l) => ld.set(f, l));
+    } catch (e) {
+      console.error(e);
+      this.disposeMenuScene();
+      this.showFatal('The 3D menu failed to start', String(e && e.message || e), true);
+      return;
+    }
     this.menus.main();
+    if (this.gfx.software) {
+      this.menus.notice(`Software rendering detected (${this.gfx.renderer}). The game will run very slowly. Turn on hardware acceleration in your browser for 60 FPS. ${this.settings.data.quality === 'auto' ? 'Auto quality picked Low.' : 'Set Graphics to Auto or Low in Settings.'}`);
+    }
+  }
+
+  /** Readable error screen with recovery actions (retry on Low / reload / back to menu). */
+  showFatal(title, detail, canRetry) {
+    this.menus.screen(`<div class="error"><h1>${title}</h1><p>${detail}</p>
+      <p class="muted">GPU: ${this.gfx.renderer} · ${browserName()}</p>
+      <div class="row">${canRetry ? '<button data-a="low" class="primary">Retry with Low graphics</button><button data-a="menu">Back to menu</button>' : ''}<button data-a="reload">Reload page</button></div></div>`);
+    this.menus.root.querySelector('.error').addEventListener('click', (ev) => {
+      const a = ev.target.dataset.a;
+      if (a === 'low') { this.settings.data.quality = 'low'; this.settings.save(); this.quitToMenu(); }
+      if (a === 'menu') this.quitToMenu();
+      if (a === 'reload') location.reload();
+    });
+  }
+
+  async rebuildMenuScene() {
+    this.disposeMenuScene();
+    await this.boot();
+    this.menus.settingsScreen();
   }
 
   async buildMenuScene(progress) {
     progress(0.1, 'Renderer');
     await frame();
-    const q = this.settings.data.quality === 'ultra' ? 'high' : this.settings.data.quality;
+    const rq = this.resolveQuality();
+    const q = rq === 'ultra' ? 'high' : rq;
     this.menuRenderer = new Renderer(this.stage, q);
     progress(0.4, 'Arena');
     await frame();
@@ -103,7 +149,9 @@ class App {
       await game.load((f, label) => ld.set(f, label));
     } catch (err) {
       console.error(err);
-      this.menus.screen(`<div class="error"><h1>Failed to load the game</h1><pre>${String(err && err.stack || err)}</pre><button onclick="location.reload()">Reload</button></div>`);
+      try { game.stop(); } catch { /* partially built */ }
+      this.game = null;
+      this.showFatal('The game failed to load', String(err && err.message || err), true);
       return;
     }
     this.menus.hide();
@@ -113,6 +161,7 @@ class App {
   quitToMenu() {
     if (this.game) this.game.stop();
     this.game = null;
+    this.disposeMenuScene();
     this.boot();
   }
 
@@ -134,6 +183,7 @@ if (new URLSearchParams(location.search).get('view') === 'model') {
 const app = new App();
 app.boot().catch((e) => {
   console.error(e);
-  document.getElementById('ui').innerHTML = `<div class="error"><h1>Startup error</h1><pre>${String(e && e.stack || e)}</pre></div>`;
+  app.showFatal('Startup error', String(e && e.message || e), true);
 });
+window.addEventListener('unhandledrejection', (e) => console.error('Unhandled promise rejection:', e.reason));
 }

@@ -17,7 +17,16 @@ export class AudioSystem {
     const ctx = new AC();
     this.ctx = ctx;
     this.master = ctx.createGain();
-    this.master.connect(ctx.destination);
+    // Bus compressor + limiter so crowd swells, horns and commentary never clip.
+    this.comp = ctx.createDynamicsCompressor();
+    this.comp.threshold.value = -18; this.comp.knee.value = 12; this.comp.ratio.value = 3.5;
+    this.comp.attack.value = 0.01; this.comp.release.value = 0.25;
+    this.limiter = ctx.createDynamicsCompressor();
+    this.limiter.threshold.value = -2; this.limiter.knee.value = 0; this.limiter.ratio.value = 20;
+    this.limiter.attack.value = 0.002; this.limiter.release.value = 0.1;
+    this.master.connect(this.comp);
+    this.comp.connect(this.limiter);
+    this.limiter.connect(ctx.destination);
     this.bus = {};
     for (const b of ['sfx', 'crowd', 'music', 'voice']) {
       const g = ctx.createGain();
@@ -37,7 +46,7 @@ export class AudioSystem {
   applyVolumes() {
     if (!this.ctx) return;
     const s = this.settings;
-    this.master.gain.value = s.master;
+    this.master.gain.value = s.muted ? 0 : s.master;
     this.bus.sfx.gain.value = s.sfx;
     this.bus.crowd.gain.value = s.crowd;
     this.bus.music.gain.value = s.music;

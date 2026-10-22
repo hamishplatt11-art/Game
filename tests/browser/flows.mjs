@@ -1,14 +1,13 @@
 // UI flow checks: MyPLAYER builder, pause menu, box score, substitutions,
 // halftime and final screens (simulation fast-forwarded between captures).
-import { chromium } from 'playwright-core';
+import { launchBrowser } from './launch.mjs';
 import { startServer } from './server.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 const out = path.resolve('tests/browser/out');
 fs.mkdirSync(out, { recursive: true });
-const exe = fs.readdirSync('/opt/pw-browsers').map((d) => `/opt/pw-browsers/${d}/chrome-linux/chrome`).find((p) => fs.existsSync(p));
 const server = await startServer(5195);
-const browser = await chromium.launch({ executablePath: exe, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launchBrowser();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errs = [];
 page.on('pageerror', (e) => errs.push(String(e.stack || e)));

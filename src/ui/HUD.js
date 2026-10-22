@@ -232,6 +232,18 @@ export class HUD {
     else if (e.kind === 'dunk') this.banner('SLAM!', name, 'score');
   }
 
+  showContextLost() {
+    if (this.ctxLostEl) return;
+    this.ctxLostEl = el('div', 'ctx-lost');
+    this.ctxLostEl.textContent = 'Graphics device reset — restoring… (the game is paused)';
+    this.root.appendChild(this.ctxLostEl);
+  }
+
+  hideContextLost() {
+    this.ctxLostEl?.remove();
+    this.ctxLostEl = null;
+  }
+
   banner(title, sub, kind = '') {
     const b = el('div', `banner ${kind}`, `<b>${esc(title)}</b>${sub ? `<span>${esc(sub)}</span>` : ''}`);
     this.banners.appendChild(b);
