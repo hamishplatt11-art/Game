@@ -139,6 +139,7 @@ export class Simulation {
     if (this.user.player && !this.user.player.onCourt) {
       this.setUserPlayer(this.teams[this.user.team].onCourt[0]);
     }
+    for (const p of this.players) if (p !== this.user.player) p.intent.strafe = false;
     if (this.user.player && input) this.applyUserInput(this.user.player, input);
     this.ai[0].update(dt);
     this.ai[1].update(dt);
@@ -808,6 +809,7 @@ export class Simulation {
     it.walk = false;
     it.handsUp = !!inp.handsUp;
     it.faceX = null; it.faceZ = null;
+    it.strafe = false;
     const b = this.ball;
     const hasBall = b.owner === p && (b.state === 'held' || b.state === 'dribble');
     const phase = this.match.phase;
@@ -856,8 +858,15 @@ export class Simulation {
         it.faceZ = p.z - (h.z - p.z);
         it.sprint = false;
       }
-      // Low protective dribble while holding stance with the ball.
+      // Low protective dribble while holding stance with the ball: the handler
+      // squares up to the rim and strafes (side-steps) instead of turning away.
       b.dribble.style = inp.stance ? 'low' : (inp.sprint && p.speed > 4 ? 'sprint' : 'normal');
+      it.strafe = !!inp.stance && b.state === 'dribble' && !p.posting;
+      if (it.strafe) {
+        const h = hoopPos(hoop);
+        it.faceX = h.x; it.faceZ = h.z;
+        it.sprint = false;
+      }
 
       if (inp.shootPressed) {
         let dir = null;

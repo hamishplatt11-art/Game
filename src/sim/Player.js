@@ -31,7 +31,7 @@ export class Player {
     this.onCourt = false;
     this.fouls = 0;
     this.slot = 0;
-    this.intent = { mx: 0, mz: 0, sprint: false, stance: false, faceX: null, faceZ: null, handsUp: false, walk: false };
+    this.intent = { mx: 0, mz: 0, sprint: false, stance: false, strafe: false, faceX: null, faceZ: null, handsUp: false, walk: false };
     this.action = null;
     this.cooldowns = { steal: 0, block: 0, move: 0, pass: 0 };
     // Ball-handling state.
@@ -101,6 +101,7 @@ export class Player {
     const mag = Math.min(1, Math.hypot(it.mx, it.mz));
     let maxSp;
     if (it.stance) maxSp = this.shuffleMax();
+    else if (it.strafe) maxSp = this.shuffleMax() * 1.05;
     else if (it.sprint) maxSp = this.sprintMax();
     else if (it.walk) maxSp = 1.6;
     else maxSp = this.jogMax();
@@ -129,13 +130,14 @@ export class Player {
       const curDir = Math.atan2(this.vz, this.vx);
       const desDir = Math.atan2(dsz, dsx);
       const turn = Math.abs(wrapAngle(desDir - curDir));
-      if (sp > 2.6 && turn > 1.35 && !it.stance) {
+      if (sp > 2.6 && turn > 1.35 && !it.stance && !it.strafe) {
         this.plantTimer = 0.2 - 0.09 * this.r('agility');
         this.planted = { t: 0, angle: turn };
         this.events?.push({ type: 'plant', p: this, speed: sp });
       } else if (sp > 0.4) {
-        const turnRate = (3.2 + 4.5 * this.r('agility')) / (1 + sp / (it.stance ? 8 : 4.5));
-        const nd = approachAngle(curDir, desDir, turnRate * dt * (it.stance ? 3 : 1));
+        const lateral = it.stance || it.strafe;
+        const turnRate = (3.2 + 4.5 * this.r('agility')) / (1 + sp / (lateral ? 8 : 4.5));
+        const nd = approachAngle(curDir, desDir, turnRate * dt * (lateral ? 3 : 1));
         let ns = sp < desiredSp ? Math.min(desiredSp, sp + accel * dt) : Math.max(desiredSp, sp - decel * dt);
         // Cutting hard bleeds speed.
         ns -= Math.min(turn, 1.2) * 0.9 * dt * sp * 0.4;
@@ -154,7 +156,7 @@ export class Player {
     if (it.faceX !== null && it.faceZ !== null) face = Math.atan2(it.faceZ - this.z, it.faceX - this.x);
     else if (this.speed > 0.6) face = Math.atan2(this.vz, this.vx);
     if (face !== null) {
-      const rate = (it.stance ? 7 : 5.5) + 3 * this.r('agility');
+      const rate = (it.stance || it.strafe ? 7 : 5.5) + 3 * this.r('agility');
       this.facing = approachAngle(this.facing, face, rate * dt);
     }
     this.updateStamina(dt, it.sprint && this.speed > 4.2, this.liveClock !== false);

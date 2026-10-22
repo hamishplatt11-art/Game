@@ -78,7 +78,9 @@ export class PlayerView {
     const turnRate = dt > 0 ? Math.abs(dFace) / dt : 0;
     this.turnStep = (this.turnStep || 0) + (Math.min(1.4, turnRate * 0.35) - (this.turnStep || 0)) * Math.min(1, dt * 10);
     const s = Math.max(p.speed, p.speed < 0.5 ? this.turnStep : 0);
-    const stance = p.intent.stance && !hasBall;
+    // Defensive stance, or a strafing protect-dribble facing the rim.
+    const stance = (p.intent.stance && !hasBall) || (dribbling && p.intent.strafe);
+    this.yawRate = dt > 0 ? dFace / dt : 0;
 
     let gaitClip = null;
     if (p.posting && hasBall) {
@@ -164,6 +166,8 @@ export class PlayerView {
     }
     this.mixer.update(0);
     this.root.updateMatrixWorld(true);
+    this.applyBodyDynamics(p, dt, shot, stance);
+    this.applyLegIK(p, dt, shot, s);
     this.applyIK(sim, p, a, hasBall, dribbling, ballPos, dt);
     this.headLook(sim, p, ballPos, dt);
   }
@@ -234,6 +238,89 @@ export class PlayerView {
   }
 
   // -------------------------------------------------------------------------
+  // Procedural layers on top of the clips
+  // -------------------------------------------------------------------------
+  /**
+   * Momentum layer: the torso pitches with forward acceleration, leans back
+   * to brake on a hard plant, banks into turns (lean ∝ speed × yaw rate), and
+   * slumps when a player is exhausted. Hips drop during plants so the legs
+   * (solved below) visibly load before the push-off.
+   */
+  applyBodyDynamics(p, dt, shot, stance) {
+    if (dt <= 0) return;
+    const fx = Math.cos(p.facing), fz = Math.sin(p.facing);
+    const vF = p.vx * fx + p.vz * fz;
+    const aF = this.prevVF === undefined ? 0 : (vF - this.prevVF) / dt;
+    this.prevVF = vF;
+    const k = Math.min(1, dt * 7);
+    const free = !shot ? 1 : (shot.blendLoco || 0) * 0.6;
+    const grounded = !p.airborne && p.y < 0.02;
+    let pitchT = grounded ? Math.max(-0.22, Math.min(0.28, aF * 0.03 + Math.max(0, vF) * 0.014)) : 0;
+    let bankT = grounded && !stance ? Math.max(-0.2, Math.min(0.2, (this.yawRate || 0) * p.speed * 0.028)) : 0;
+    let dropT = 0;
+    if (p.plantTimer > 0 && grounded) { pitchT = -0.16; dropT = 0.045; }
+    const tired = Math.max(0, (0.45 - p.stamina) / 0.4);
+    let slumpT = tired > 0 && p.speed < 1.2 && grounded ? 0.22 * Math.min(1, tired) : 0;
+    this.leanF = (this.leanF || 0) + (pitchT * free - (this.leanF || 0)) * k;
+    this.bank = (this.bank || 0) + (bankT * free - (this.bank || 0)) * k;
+    this.drop = (this.drop || 0) + (dropT * free - (this.drop || 0)) * Math.min(1, dt * 14);
+    this.slump = (this.slump || 0) + (slumpT * free - (this.slump || 0)) * Math.min(1, dt * 2);
+    const B = this.bones;
+    if (Math.abs(this.bank) > 1e-4) {
+      B.hips.quaternion.premultiply(_q1.setFromAxisAngle(_v1.set(0, 0, 1), this.bank * 0.7));
+      B.chest.quaternion.premultiply(_q1.setFromAxisAngle(_v1.set(0, 0, 1), -this.bank * 0.25));
+    }
+    const pitch = this.leanF + this.slump;
+    if (Math.abs(pitch) > 1e-4) {
+      B.spine.quaternion.premultiply(_q1.setFromAxisAngle(_v1.set(1, 0, 0), pitch * 0.55));
+      B.chest.quaternion.premultiply(_q1.setFromAxisAngle(_v1.set(1, 0, 0), pitch * 0.45));
+      B.neck.quaternion.premultiply(_q1.setFromAxisAngle(_v1.set(1, 0, 0), -pitch * 0.4));
+    }
+    if (this.drop > 1e-4 || this.slump > 1e-3) B.hips.position.y -= (this.drop + this.slump * 0.08) * this.H;
+    this.root.updateMatrixWorld(true);
+  }
+
+  /**
+   * Lightweight foot IK. Keeps ankles above the floor (no sinking when the
+   * hips drop or the body leans) and, while standing, pins each foot to its
+   * world contact point so idle sway and slow turns don't skate the feet. A
+   * pinned foot releases (takes a step) once the pose drifts too far from it.
+   */
+  applyLegIK(p, dt, shot, s) {
+    if (p.airborne || p.y > 0.02 || (shot && !shot.blendLoco)) {
+      this.footLock = null;
+      return;
+    }
+    const ankleH = 0.046 * this.H;
+    const standing = s < 0.2 && (this.turnStep || 0) < 0.12;
+    if (!this.footLock) this.footLock = { L: null, R: null, wL: 0, wR: 0 };
+    const FL = this.footLock;
+    const fwd = _v4.set(Math.cos(p.facing), 0, Math.sin(p.facing));
+    for (const sd of ['L', 'R']) {
+      const th = this.bones[`thigh_${sd}`], sh = this.bones[`shin_${sd}`], ft = this.bones[`foot_${sd}`];
+      const anim = ft.getWorldPosition(new THREE.Vector3());
+      if (standing) {
+        if (!FL[sd] || Math.hypot(FL[sd].x - anim.x, FL[sd].z - anim.z) > 0.16) FL[sd] = anim.clone();
+        FL[`w${sd}`] = Math.min(1, FL[`w${sd}`] + dt / 0.12);
+      } else {
+        FL[`w${sd}`] = Math.max(0, FL[`w${sd}`] - dt / 0.12);
+        if (FL[`w${sd}`] === 0) FL[sd] = null;
+      }
+      const target = anim.clone();
+      if (FL[sd]) { target.x += (FL[sd].x - target.x) * FL[`w${sd}`]; target.z += (FL[sd].z - target.z) * FL[`w${sd}`]; }
+      if (target.y < ankleH) target.y = ankleH;
+      if (target.distanceToSquared(anim) < 1e-6) continue;
+      const footQ = ft.getWorldQuaternion(new THREE.Quaternion());
+      const pole = _v3.copy(fwd).multiplyScalar(1).add(_v2.set(0, 0.15, 0));
+      this.solveTwoBone(th, sh, ft, target, pole, 1, 0);
+      // Keep the sole's world orientation from the clip (flat on the floor).
+      ft.parent.getWorldQuaternion(_q3).invert();
+      ft.quaternion.copy(_q3.multiply(footQ));
+      ft.updateMatrixWorld(true);
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // IK
   // -------------------------------------------------------------------------
   applyIK(sim, p, a, hasBall, dribbling, ballPos, dt) {
@@ -285,16 +372,20 @@ export class PlayerView {
   }
 
   solveArm(s, target, pole, weight) {
-    const ua = this.bones[`upperArm_${s}`], fa = this.bones[`foreArm_${s}`], hd = this.bones[`hand_${s}`];
-    const A = ua.getWorldPosition(_v1);
-    const B = fa.getWorldPosition(_v2);
-    const C = hd.getWorldPosition(_v3);
-    const la = A.distanceTo(B), lb = B.distanceTo(C);
     // Aim the wrist so the palm (not the wrist) meets the target.
+    this.solveTwoBone(this.bones[`upperArm_${s}`], this.bones[`foreArm_${s}`], this.bones[`hand_${s}`], target, pole, weight, this.handLen * 0.42);
+  }
+
+  /** Analytic two-bone IK (shoulder/elbow/wrist or hip/knee/ankle) with a pole vector. */
+  solveTwoBone(ua, fa, hd, target, pole, weight, inset) {
+    const A = ua.getWorldPosition(new THREE.Vector3());
+    const B = fa.getWorldPosition(new THREE.Vector3());
+    const C = hd.getWorldPosition(new THREE.Vector3());
+    const la = A.distanceTo(B), lb = B.distanceTo(C);
     const T = target.clone();
     const toT = T.clone().sub(A);
     const dist = toT.length();
-    if (dist > 1e-4) T.addScaledVector(toT, -this.handLen * 0.42 / dist);
+    if (dist > 1e-4 && inset) T.addScaledVector(toT, -inset / dist);
     const dv = T.clone().sub(A);
     let d = dv.length();
     d = Math.max(0.05, Math.min(d, la + lb - 0.002));
