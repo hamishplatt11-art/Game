@@ -43,3 +43,21 @@ Integration points:
 - `AnimationLibrary` clips address bones by name (`upperArm_R.quaternion`, …).
   Licensed clips need retargeting to these names, or `PlayerView`'s clip table
   updated.
+
+## Upgrade 0.2 asset changes
+
+No external assets were added in this upgrade. All new content is original
+code: neck re-proportioning and head/hair/beard level-of-detail
+(`HumanModel.js`), a lighter Low-quality crowd (`Arena.js`), the practice shot
+chart (DOM/SVG, `PracticePanel.js`), and procedural animation layers
+(`PlayerView.js`).
+
+**GLB pipeline (no models shipped).** `src/render/Retarget.js` loads a
+glTF 2.0 / GLB character (+Y up, metres, with an armature), maps bone names
+(Mixamo `mixamorig:*`, Unreal mannequin `*_l/_r`, Blender `*.L/*.R`, or this
+rig's names), and retargets this game's animation onto it in world space, so
+a T-pose rig follows our A-pose clips. Try it in `?view=model` → Import GLB.
+It was verified by round-tripping the built-in character (Export GLB →
+Import GLB: 23/23 bones mapped, pose follows). No third-party rig was tested
+because none with a suitable licence was available in the sandbox; test any
+licensed model you add, and keep its licence file next to it.

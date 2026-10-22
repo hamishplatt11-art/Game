@@ -6,32 +6,54 @@ shooting with a meter, right-stick dribble moves, dynamic layups and a dunk
 meter, contest-aware shots, team AI, NBA rules and a broadcast presentation. It
 uses original code and assets and a fictional league.
 
-> **Status: first playable milestone.** Full 5v5 Play Now games, Blacktop
-> (1v1–5v5) and Practice work end to end. Characters and animations are
-> original procedural stand-ins, not photoreal scans or motion capture. See
-> [Missing features](#missing-features) and [docs/ASSETS.md](docs/ASSETS.md).
+> **Status: upgraded playable build.** Play Now (full 5v5 with real
+> rotations), Blacktop (1v1–5v5), Practice (shot lab with chart, replay and
+> defender options) and the MyPLAYER builder work end to end. Characters and
+> animations are original procedural models and hand-keyed clips, **not**
+> photoreal scans or motion capture. A GLB import/retarget path exists for
+> legitimately sourced character models. See [Missing features](#missing-features),
+> [docs/UPGRADE_REPORT.md](docs/UPGRADE_REPORT.md) and [docs/ASSETS.md](docs/ASSETS.md).
 
-## Run it
+## Run it on a Mac
 
-Requires Node 18+ and a desktop browser with WebGL2 (Chrome, Edge or Firefox).
+Requirements: macOS 12+, [Node.js 18 or newer](https://nodejs.org/) (the LTS
+installer, or `brew install node`), and Chrome, Edge, Safari 15+ or Firefox
+with hardware acceleration on (the default).
 
 ```bash
-npm install          # install dependencies (three, vite, vitest, playwright-core)
-npm run dev          # start the dev server at http://localhost:5173
-npm run build        # production build into dist/
-npm run preview      # serve the production build at http://localhost:4173
-npm test             # headless simulation tests (physics, rules, full matches, user input)
-npm run test:browser # Chromium smoke test (needs a Chromium binary, see below)
+cd Hardwood27            # the unzipped folder
+npm install              # one time: three, vite, vitest, playwright-core
+npm run dev              # dev server; open the printed URL, normally http://localhost:5173
 ```
 
-Open the printed URL. Opening `index.html` directly from disk does not work,
-because ES modules need a server.
+Production build:
+
+```bash
+npm run build            # writes dist/ (must finish without errors)
+npm run preview          # serves dist/ at http://localhost:4173
+```
+
+Opening `index.html` straight from Finder does not work: ES modules need the
+local server above. The same commands work on Windows and Linux.
+
+**Graphics quality.** Settings → Graphics → Quality defaults to **Auto**, which
+picks a preset from the detected GPU (Apple M-series → High, integrated →
+Medium, software rendering → Low). If the browser has no WebGL2 or is using a
+software renderer, the menu says so and explains how to turn hardware
+acceleration on. If the 3D scene fails to start, an error screen offers
+**Retry with Low graphics** instead of a black screen. Press **F3** in game for
+the developer HUD (GPU, WebGL2, FPS, median/95th-percentile frame time, draw
+calls, triangles, camera, simulation phase, controlled player, ball, input).
 
 Developer views:
-- `?view=model`: character and animation viewer. Pick a clip, drag to orbit,
-  scroll to zoom. Parameters: `team`, `p`, `uni`, `clip`, `t`.
-- Settings → Gameplay → **Performance overlay** shows FPS, simulation and
-  render milliseconds, draw calls, triangles and heap.
+- `?view=model`: character viewer with front/side/back/three-quarter/top
+  views, clip list with play/pause/speed and a timeline scrubber, skeleton
+  overlay and joint inspector, team/player/uniform switching, **Validate rig**
+  (bones, skin weights, symmetry, per-clip floor contact), **Export GLB** and
+  **Import GLB** (maps a Mixamo/UE/Blender-style skeleton onto this rig and
+  retargets the selected clip live). URL parameters: `team`, `p`, `uni`,
+  `clip`, `t`, `view`, `yaw`, `pitch`, `dist`, `glb`.
+- Settings → Gameplay → **Performance overlay**.
 
 ## Controls
 
@@ -174,64 +196,72 @@ conventions and has not been verified against NBA 2K27 footage (see
 ## Missing features
 
 - **Photoreal characters and real likenesses.** Characters are procedural
-  stand-ins, and no licensed NBA players, teams or uniforms are included.
-- **Motion-captured animation.** The clip library is hand-keyed and much
-  smaller than a AAA library. It has no foot IK planting, motion matching or
-  motion warping, and no full cloth simulation.
-- MyCAREER (season and career progression), Franchise/MyNBA and online
-  multiplayer are not implemented; they are marked "In development" in the
-  menu. The MyPLAYER builder exists, but its player can only be used in
-  Practice and Blacktop for now.
-- The Pro Stick shot is "hold down, release" only. There is no aiming and no
-  tempo tick on the meter.
-- Bench players are not rendered. Referees are on the floor but are visual
-  only; calls come from the rules engine.
-- Commentary is text only (optional browser TTS); there is no recorded commentary.
-- No WebGPU path; the renderer is WebGL2 only.
-- The physics layer is custom code, not Rapier. The ball and body collisions
-  were written for this game (see "Technical notes").
+  models with painted textures. No licensed NBA players, teams, uniforms or
+  2K assets are included. Photoreal athletes need a legitimately sourced or
+  commissioned GLB; the import/retarget path in `src/render/Retarget.js` is
+  the hook for that.
+- **Motion capture / motion matching.** Clips are hand-keyed. On top of them
+  the game now layers momentum lean, turn banking, plant crouch, fatigue
+  posture, strafe dribbling, two-bone foot IK with ground alignment and
+  standing foot locks, but there is no mocap, motion matching, motion warping
+  or cloth simulation.
+- MyCAREER, Franchise/MyNBA and online multiplayer are not implemented (they
+  stay labelled "In development"). The MyPLAYER builder player can be used in
+  Practice and Blacktop.
+- Pro Stick aiming and a tempo tick are not implemented.
+- Bench players are not rendered (they exist in the simulation and rotate in).
+- Audio is synthesised (no recorded samples); commentary is text with
+  optional, labelled browser text-to-speech. Sound is not positional.
+- No WebGPU path; WebGL2 only. Physics is custom (not Rapier), see notes.
 
 ## Known issues
 
-- Shoulders, armpits and hands are simplified, so close-ups show seams where
-  the arms join the torso.
-- Fast direction changes can still show some foot sliding, because there is no foot IK yet.
-- CPU box scores are in an NBA-like range but not tuned to league averages.
-  Turnovers (out-of-bounds plays) and three-point volume for some teams run high.
-- Players can be pushed out of bounds through body contact, as in real play,
-  which is called as a violation.
-- In software-rendered browsers (no GPU) the game runs at about 1 FPS. It
-  needs a hardware-accelerated WebGL2 GPU.
+- 60 FPS on Apple Silicon is the target but has **not been measured** by the
+  developer (no Mac/GPU was available; see the report). Use F3 on your Mac.
+- CPU-vs-CPU pace is high in 12-minute quarters: about 200–235 combined field
+  goal attempts and 100–150 points per team (NBA ≈ 175 FGA, ≈ 115 points).
+- Shoulders, armpits, hands and ears are simplified; close-ups show seams.
+- Players can be pushed out of bounds through body contact (called as a
+  violation unless the defence touched the ball last).
+- Software-rendered browsers (no GPU) run at roughly 2–3 FPS; the game warns
+  about it and drops to Low quality.
 
 ## Testing
 
-- `npm test` runs:
-  - `tests/physics.test.js`: ball rests on the floor; centred shots from 300
-    random spots go through the rim more than 97% of the time; front-rim aims
-    miss and hit the rim; entry angle is above 38°.
-  - `tests/match.test.js`: a full CPU-vs-CPU game reaches a final with five
-    players per side every step. Team scores equal the box score, and
-    per-player points equal 2×FG2 + 3×FG3 + FT. Possession changes, passes,
-    rebounds and period ends occur. A 3v3 Blacktop game reaches its target.
-  - `tests/user.test.js`: the user input path. A perfectly timed jumper grades
-    Excellent and goes in; an early release grades early; a tap is a pump fake
-    that picks up the dribble; a flick crosses over and switches hands; a back
-    flick is a stepback with a jumper window; the user can pass to a teammate,
-    switch on defence and attempt a steal.
-- `npm run test:browser` builds the game, launches Chromium and walks from
-  the menu through setup, loading, pregame and tip-off into live play. It
-  records console errors and screenshots in `tests/browser/out/`.
-  `tests/browser/shots.mjs` and `tests/browser/ingame.mjs` capture character
-  and in-game close-ups. Set `CHROME=/path/to/chrome` if Chromium is not under
-  `/opt/pw-browsers`.
-- `node tests/runMatch.mjs [quarterMinutes] [seed]` simulates a match
-  headless and prints the box score (about 25× real time).
+```bash
+npm test                     # 37 headless simulation tests (vitest)
+npm run test:browser         # end-to-end browser journey with metrics (20 checks)
+npm run test:browser:all     # journey + practice + model viewer + in-game captures
+node tests/audit.mjs 12 4    # multi-seed box-score / rotation audit (12-min quarters, 4 games)
+node tests/browser/compare.mjs <projectRoot> <outDir>   # 10 visual checkpoints
+```
 
-Measured in this development container (no GPU): the simulation step for 10
-players costs about 0.04 ms in Node. In headless Chromium with SwiftShader
-software rendering, a full arena frame takes about 220 ms. GPU frame times
-have **not** been measured yet; use the in-game performance overlay on real
-hardware.
+Headless suites (`tests/*.test.js`): ball physics; full seeded 5v5 game
+reaching a final with consistent box scores and five players per side;
+**rotations** (substitutions, real bench minutes, no fouled-out returns, subs
+only at stoppages), fatigue and bench recovery, fast-break points over a
+sample, Blacktop 1v1/3v3/5v5 to target, buzzer-beater timing; **rules**
+(seeded determinism, 2 vs 3 points, contest effect, out-of-bounds rulings,
+shooting-foul free-throw counts, shot clock, travelling); user input
+(Excellent release, early release, pump fake, crossover, stepback, pass,
+switch, steal); **practice** (shot log/summary, spots and reset, stand-in vs
+active defender, defender possessions returned).
+
+Browser tests (`tests/browser/`, Playwright driving a real Chrome): the
+journey boots to a visible 3D menu, checks settings persistence, remapping
+with conflict swap, Play Now via the UI, real keyboard play, shoot/pass/
+switch/camera/pause/resume/quit, resize, blur, WebGL context loss and
+restore, two restarts with no canvas/GPU/JS-heap growth, every character
+upright, Blacktop 3v3 to 11, Practice meter and shot log, typing in a text
+field, and no page errors. It writes `tests/browser/out/journey.json`,
+including the GPU string and whether rendering was hardware accelerated.
+
+**Browser binaries (Mac):** the scripts use, in order, `$CHROME`, an installed
+Google Chrome / Chrome Canary / Chromium / Edge in `/Applications`, then the
+Playwright cache (`~/Library/Caches/ms-playwright`, filled by
+`npx playwright install chromium`). On a Mac they use the real GPU;
+SwiftShader is used only on GPU-less Linux machines (or with `SOFTWARE_GL=1`).
+Set `HEADED=1` to watch the run.
 
 ## Project structure
 
@@ -256,7 +286,12 @@ src/
   ui/                     HUD, Menus, Commentary
   input/InputManager.js   keyboard + gamepad, flicks/holds/rotations, remapping
   audio/AudioSystem.js    Web Audio synthesis
-  dev/ModelViewer.js      character/animation viewer (?view=model)
+  dev/ModelViewer.js      character viewer (?view=model): views, scrub, joints, GLB import/export
+  dev/RigCheck.js         rig validation (bones, weights, symmetry, per-clip floor contact)
+  render/Retarget.js      GLB loader, skeleton name mapping, world-space retargeting
+  core/Platform.js        GPU / WebGL2 / software-renderer detection, auto quality
+  ui/DebugHud.js          F3 developer HUD
+  ui/PracticePanel.js     practice shot chart and analysis (sim/PracticeStats.js)
   data/rosters.json       fictional league (6 teams × 9 players)
 docs/RESEARCH.md          what was researched, what still needs visual verification
 docs/ASSETS.md            asset manifest and licensing
@@ -279,8 +314,9 @@ tests/                    vitest + Playwright tests
 ## Suggested next priorities
 
 1. **Characters:** commission or license GLB athletes (scanned heads,
-   sculpted bodies) on the `BONES` rig, and add facial blendshapes.
-2. **Animation:** record or license basketball mocap. Add foot-plant IK,
+   sculpted bodies) and bring them in through `Retarget.js` (or skin them to
+   the `BONES` rig), and add facial blendshapes.
+2. **Animation:** record or license basketball mocap. Add
    motion matching for locomotion and motion warping for layups and dunks.
    Grow toward the "29 movement components" dribble system.
 3. **Shooting feel:** Pro Stick aiming and tempo tick (rhythm shooting), and
@@ -288,7 +324,7 @@ tests/                    vitest + Playwright tests
 4. **AI tuning:** run stat-sampling to calibrate pace, three-point rate,
    turnovers and fouls to league averages per difficulty. Add more set plays,
    such as Spain pick-and-roll, floppy and hand-offs.
-5. **Presentation:** referees, bench players, broadcast intros and halftime
+5. **Presentation:** bench players, broadcast intros and halftime
    show, and recorded commentary.
 6. **Modes:** MyCAREER on top of the MyPLAYER builder, then MyNBA. Online play would
    need server-authoritative simulation; the headless deterministic simulation
