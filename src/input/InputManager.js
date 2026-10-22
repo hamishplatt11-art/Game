@@ -11,6 +11,7 @@ export const ACTIONS = {
   switchPlayer: 'Switch player', pause: 'Pause', rsUp: 'Dribble move: up (hesitation) · hands up', rsDown: 'Dribble move: down (stepback)',
   rsLeft: 'Dribble move: left', rsRight: 'Dribble move: right', spin: 'Spin move', sizeup: 'Size-up combo', handsUp: 'Hands up (contest)',
   takeCharge: 'Take charge', timeout: 'Timeout', camera: 'Cycle camera',
+  practiceReset: 'Practice: reset to spot', practiceSpot: 'Practice: next shooting spot', practiceReplay: 'Practice: replay last shot', practiceChart: 'Practice: show/hide shot chart',
 };
 
 export const DEFAULT_KEYS = {
@@ -19,6 +20,7 @@ export const DEFAULT_KEYS = {
   screen: ['KeyG'], steal: ['KeyF'], jump: ['Space'], stance: ['KeyC'], switchPlayer: ['Tab'], pause: ['Escape', 'KeyP'],
   rsUp: ['ArrowUp'], rsDown: ['ArrowDown'], rsLeft: ['ArrowLeft'], rsRight: ['ArrowRight'], spin: ['KeyR'], sizeup: ['KeyE'],
   handsUp: ['KeyH'], takeCharge: ['KeyV'], timeout: ['KeyT'], camera: ['KeyM'],
+  practiceReset: ['KeyX'], practiceSpot: ['KeyZ'], practiceReplay: ['KeyB'], practiceChart: ['KeyN'],
 };
 
 // Standard Gamepad mapping, following NBA 2K's long-standing Xbox layout:
@@ -289,6 +291,10 @@ export class InputManager {
       camera: this.wasPressed('camera') || this.padPressed(PAD.UP),
       confirm: this.pressed.has('Enter') || this.pressed.has('NumpadEnter') || this.padPressed(PAD.A),
       skip: this.pressed.has('Enter') || this.wasPressed('shoot') || this.padPressed(PAD.A) || this.padPressed(PAD.X),
+      practiceReset: this.wasPressed('practiceReset') || this.padPressed(PAD.DOWN),
+      practiceSpot: this.wasPressed('practiceSpot') || this.padPressed(PAD.RIGHT),
+      practiceReplay: this.wasPressed('practiceReplay') || this.padPressed(PAD.LEFT),
+      practiceChart: this.wasPressed('practiceChart') || this.padPressed(PAD.LS),
     };
   }
 

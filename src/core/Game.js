@@ -56,6 +56,7 @@ export class Game {
         quarterMin: cfg.quarterMin, difficulty: cfg.difficulty, userTeam: cfg.userTeam, autoSwitch: this.settings.autoSwitch,
         layupTiming: this.settings.layupTiming, mode: cfg.mode, playersPerSide: cfg.playersPerSide || 5, targetScore: cfg.targetScore || 21,
         ones: cfg.ones, makeItTakeIt: cfg.makeItTakeIt, winBy2: cfg.winBy2, uniforms: cfg.uniforms, userFreeThrows: true,
+        defenderMode: cfg.defender === 'stand' ? 'stand' : 'active', practiceAutoReturn: this.settings.practiceAutoReturn !== false,
       },
     });
     if (cfg.mode === 'practice') {
@@ -204,6 +205,12 @@ export class Game {
     }
     if (ui.camera) this.cycleCamera();
     const sim = this.sim;
+    if (sim.match.practice && !this.replay && !this.paused) {
+      if (ui.practiceReset) sim.match.practiceReset(false);
+      if (ui.practiceSpot) sim.match.practiceReset(true);
+      if (ui.practiceReplay) this.replayLastPracticeShot();
+      if (ui.practiceChart) this.hud.togglePracticeChart();
+    }
     let simMs = 0;
     if (this.replay) {
       this.updateReplay(dt, ui);
@@ -401,14 +408,27 @@ export class Game {
     }
   }
 
+  /** Practice: instant replay of the most recent attempt from the replay buffer. */
+  replayLastPracticeShot() {
+    const last = this.sim.match.practiceLog[this.sim.match.practiceLog.length - 1];
+    if (!last) { this.hud.toast('Take a shot first'); return; }
+    const t = Math.min(this.sim.t - 0.05, last.t + 1.2);
+    this.startReplay({ t, kind: 'Practice', player: this.sim.user.player }, 2.2, 0.6);
+  }
+
   checkPendingReplay() {
     const sim = this.sim;
     const r = this.pendingReplay;
     if (!r || sim.match.phase !== 'deadball' || sim.t - r.t < 1.0) return;
     if (sim.t - r.t > 6) { this.pendingReplay = null; return; }
     this.pendingReplay = null;
-    const start = this.replayBuf.findIndex((f) => f.t >= r.t - 2.6);
-    const end = this.replayBuf.findIndex((f) => f.t >= r.t + 1.0);
+    this.startReplay(r);
+  }
+
+  startReplay(r, before = 2.6, after = 1.0) {
+    const sim = this.sim;
+    const start = this.replayBuf.findIndex((f) => f.t >= r.t - before);
+    const end = this.replayBuf.findIndex((f) => f.t >= r.t + after);
     if (start < 0) return;
     const frames = this.replayBuf.slice(start, end < 0 ? undefined : end);
     if (frames.length < 30) return;

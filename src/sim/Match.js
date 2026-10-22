@@ -7,6 +7,18 @@ import {
 } from './constants.js';
 import { solveTimed } from './ShotSolver.js';
 
+/** Practice shooting spots: u = metres out from the hoop toward half court, v = sideline offset. */
+export const PRACTICE_SPOTS = [
+  { name: 'Top of the key (3)', u: 7.5, v: 0 },
+  { name: 'Right wing (3)', u: 5.0, v: 5.3 },
+  { name: 'Right corner (3)', u: 0.4, v: 6.85 },
+  { name: 'Left corner (3)', u: 0.4, v: -6.85 },
+  { name: 'Left wing (3)', u: 5.0, v: -5.3 },
+  { name: 'Free-throw line', u: 4.6, v: 0 },
+  { name: 'Right elbow', u: 4.6, v: 2.4 },
+  { name: 'Left block', u: 1.2, v: -2.2 },
+];
+
 const ACTIVE = new Set(['tipoff', 'live', 'deadball', 'inbound', 'freethrow', 'check']);
 
 export class Match {
@@ -15,6 +27,7 @@ export class Match {
     const s = sim.settings;
     this.halfCourt = s.mode === 'blacktop';
     this.practice = s.mode === 'practice';
+    this.practiceLog = [];
     this.phase = 'pregame';
     this.phaseT = 0;
     this.quarter = 1;
@@ -91,7 +104,7 @@ export class Match {
   // ---------------------------------------------------------------------
   beginGame() {
     if (this.practice) {
-      this.possTeam = this.sim.user.team ?? 0;
+      this.possTeam = this.practiceTeam = this.sim.user.team ?? 0;
       this.placeForPractice();
       this.setPhase('live');
       return;
@@ -104,17 +117,56 @@ export class Match {
     this.setupTipoff();
   }
 
-  placeForPractice() {
+  placeForPractice(spot = this.practiceSpot || PRACTICE_SPOTS[0]) {
     const sim = this.sim;
     const team = sim.teams[this.possTeam];
     const p = team.onCourt[0];
     const h = hoopPos(1);
-    p.setPos(h.x - 7.5, 0, 0);
+    this.practiceSpot = spot;
+    p.setPos(h.x - spot.u, spot.v, Math.atan2(-spot.v, spot.u));
     sim.giveBall(p, 'inbound');
     if (sim.user.team !== null) sim.setUserPlayer(p);
     // Defenders (if any) line up; other teammates stand at the slots.
     team.onCourt.slice(1).forEach((q, i) => q.setPos(h.x - 5 + i, -5 + i * 3, 0));
-    sim.teams[1 - this.possTeam].onCourt.forEach((q, i) => q.setPos(h.x - 3 - i * 0.6, -1 + i * 1.2, Math.PI));
+    // Defender sets up between the shooter and the rim.
+    sim.teams[1 - this.possTeam].onCourt.forEach((q, i) => {
+      const k = Math.min(0.62, 1.4 / Math.max(1.5, Math.hypot(spot.u, spot.v)));
+      q.setPos(h.x - spot.u * (1 - k), spot.v * (1 - k) + i * 1.2, Math.atan2(spot.v, -spot.u));
+    });
+    this.phaseT = 0;
+  }
+
+  /** Practice: user-requested reset to a shooting spot (cycles through them). */
+  practiceReset(next = false) {
+    if (!this.practice) return;
+    const sim = this.sim;
+    if (next) {
+      const i = PRACTICE_SPOTS.indexOf(this.practiceSpot);
+      this.practiceSpot = PRACTICE_SPOTS[(i + 1) % PRACTICE_SPOTS.length];
+    }
+    for (const p of sim.players) { p.action = null; p.pickedUp = false; }
+    this.finalizePracticeShot();
+    this.placeForPractice();
+    sim.emit('practiceReset', { spot: this.practiceSpot });
+  }
+
+  /** Practice shot log: every attempt with timing, contest, location and result. */
+  logPracticeShot(p, shot) {
+    if (p.team !== this.practiceTeam) return;
+    this.finalizePracticeShot();
+    const h = hoopPos(shot.hoop);
+    this.practiceLog.push({
+      n: this.practiceLog.length + 1, t: this.sim.t, x: shot.releaseX ?? p.x, z: shot.releaseZ ?? p.z, hx: h.x,
+      dist: shot.dist, three: !!shot.three, kind: shot.kind, type: shot.type, grade: shot.grade || null,
+      err: shot.err ?? null, window: shot.window ?? null, contest: shot.contest ? shot.contest.label : 'Open',
+      contestV: typeof shot.contest === 'object' ? shot.contest.value : shot.contest, prob: shot.prob ?? null, made: null,
+      zone: shot.three ? '3PT' : shot.dist < 3 ? 'Paint' : 'Mid-range',
+    });
+  }
+
+  finalizePracticeShot() {
+    const last = this.practiceLog[this.practiceLog.length - 1];
+    if (last && last.made === null) last.made = false;
   }
 
   setupTipoff() {
@@ -370,13 +422,24 @@ export class Match {
   practiceUpdate() {
     const sim = this.sim;
     const b = sim.ball;
-    // Ball returns to the shooter after it settles.
-    if (b.state === 'air' && b.air.t > 2.4 && (b.air.kind === 'shot' || b.air.kind === 'loose')) {
+    // Ball returns to the shooter after it settles (or, in rebound mode, only
+    // when it is dead or has been loose for a long time).
+    const auto = sim.settings.practiceAutoReturn !== false;
+    // The practice defender never keeps the ball: steals / rebounds go back.
+    if (b.owner && b.owner.team !== this.practiceTeam && !b.owner.action) {
+      this.finalizePracticeShot();
+      this.possTeam = this.practiceTeam;
+      sim.giveBall(sim.user.player || sim.teams[this.possTeam].onCourt[0], 'inbound');
+      return;
+    }
+    if (b.state === 'air' && (b.air.kind === 'shot' || b.air.kind === 'loose') && b.air.t > (auto ? 2.4 : 7)) {
+      this.finalizePracticeShot();
       const p = sim.user.player || sim.teams[this.possTeam].onCourt[0];
       sim.giveBall(p, 'inbound');
     }
     if (b.state === 'dead' && this.phaseT > 1) {
       const p = sim.user.player || sim.teams[this.possTeam].onCourt[0];
+      this.finalizePracticeShot();
       sim.giveBall(p, 'inbound');
     }
   }
@@ -554,6 +617,7 @@ export class Match {
 
   onShotRelease(p, shot) {
     const sim = this.sim;
+    if (this.practice) this.logPracticeShot(p, shot);
     // A shot attempt resets every three-second count.
     for (const q of sim.players) { q.inLaneT = 0; q.defLaneT = 0; }
     if (shot.kind === 'ft') {
@@ -608,6 +672,8 @@ export class Match {
     b.owner = null;
     this.addPoints(team, pts, scorer, shot, air);
     if (this.practice) {
+      const last = this.practiceLog[this.practiceLog.length - 1];
+      if (last && last.made === null && shot) last.made = true;
       this.phaseT = 0;
       return;
     }

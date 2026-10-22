@@ -5,6 +5,7 @@ import { fmtClock, quarterLabel } from '../core/Game.js';
 import { TAKEOVER_KINDS } from '../sim/Takeover.js';
 import { BADGES, BADGE_TIERS } from '../sim/Attributes.js';
 import { CAMERA_MODES, CAMERA_LABELS } from '../render/CameraSystem.js';
+import { PracticePanel } from './PracticePanel.js';
 
 const el = (tag, cls, html) => {
   const e = document.createElement(tag);
@@ -83,9 +84,15 @@ export class HUD {
   }
 
   // -------------------------------------------------------------------------
+  togglePracticeChart() { this.practicePanel?.toggle(); }
+
   update(dt) {
     const sim = this.sim;
     const m = sim.match;
+    if (m.practice) {
+      if (!this.practicePanel) this.practicePanel = new PracticePanel(this.root, sim);
+      this.practicePanel.update();
+    }
     this.set('sH', String(m.score[0]));
     this.set('sA', String(m.score[1]));
     this.set('q', quarterLabel(m));

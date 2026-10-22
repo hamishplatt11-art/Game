@@ -213,8 +213,11 @@ export class Menus {
             <h2>${esc(d.name)} <small>${d.pos} · ${fmtHeight(d.heightM)} · ${Math.round(d.weightKg * 2.2046)} lb · wingspan ${fmtHeight(d.wingM)}</small></h2>
             <div class="ratings">${bars}</div>
             <div class="badges">${badges || '<span class="muted">No badges</span>'}</div>
-            <div class="options"><div><label>Defender</label><button class="opt ${!cfg.defender ? 'on' : ''}" data-def="0">None</button><button class="opt ${cfg.defender ? 'on' : ''}" data-def="1">CPU defender</button></div></div>
-            <p class="muted">Ball is returned after every shot. Shot feedback shows release timing in milliseconds, contest and the make chance.</p>
+            <div class="options">
+              <div><label>Defender</label><button class="opt ${!cfg.defender ? 'on' : ''}" data-def="0">None</button><button class="opt ${cfg.defender === 'stand' ? 'on' : ''}" data-def="stand">Stand-in (doesn't move)</button><button class="opt ${cfg.defender === true || cfg.defender === 'active' ? 'on' : ''}" data-def="active">Active CPU</button></div>
+              <div><label>Rebounds</label><button class="opt ${this.app.settings.data.practiceAutoReturn !== false ? 'on' : ''}" data-ret="1">Ball returned</button><button class="opt ${this.app.settings.data.practiceAutoReturn === false ? 'on' : ''}" data-ret="0">Chase your own rebounds</button></div>
+            </div>
+            <p class="muted">Shot chart, zone splits, timing tendency (ms) and a tip after every attempt. In practice: X reset · Z next spot · B instant replay · N hide chart.</p>
           </div>
         </div>
         <div class="row end"><button data-a="back">Back</button><button data-a="start" class="primary">Start Practice</button></div>`, 'setup');
@@ -224,7 +227,8 @@ export class Menus {
         const b = e.target.closest('button');
         if (!b) return;
         if (b.dataset.cyc) { cfg.team = (cfg.team + Number(b.dataset.cyc) + this.teams.length) % this.teams.length; cfg.player = 0; render(); }
-        else if (b.dataset.def) { cfg.defender = b.dataset.def === '1'; render(); }
+        else if (b.dataset.def) { cfg.defender = b.dataset.def === '0' ? false : b.dataset.def; render(); }
+        else if (b.dataset.ret) { this.app.settings.data.practiceAutoReturn = b.dataset.ret === '1'; this.app.settings.save(); render(); }
         else if (b.dataset.a === 'back') this.main();
         else if (b.dataset.a === 'start') {
           const team = { ...t, players: [t.players[cfg.player], ...t.players.filter((_, i) => i !== cfg.player)] };
@@ -297,7 +301,7 @@ export class Menus {
         } else if (b.dataset.a === 'back') { this.app.hideMenuPreview(); this.main(); }
         else if (b.dataset.a === 'save' || b.dataset.a === 'practice') {
           localStorage.setItem('hw27.myplayer', JSON.stringify(raw));
-          if (b.dataset.a === 'practice') { this.prCfg = { team: 0, player: 0, defender: true }; this.app.hideMenuPreview(); this.practiceSetup(); }
+          if (b.dataset.a === 'practice') { this.prCfg = { team: 0, player: 0, defender: 'active' }; this.app.hideMenuPreview(); this.practiceSetup(); }
           else render();
         } else if (b.dataset.a === 'delete') { localStorage.removeItem('hw27.myplayer'); this.builderRaw = null; this.app.hideMenuPreview(); this.main(); }
       });

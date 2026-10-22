@@ -110,6 +110,13 @@ export class TeamAI {
       const it = p.intent;
       it.walk = false; it.stance = false; it.handsUp = false; it.faceX = null; it.faceZ = null; it.sprint = false;
       if (p.ai.screening && sim.t > p.ai.screenUntil) p.ai.screening = false;
+      if (m.practice && sim.settings.defenderMode === 'stand' && p.team !== m.possTeam) {
+        // Practice "stand-in" defender: holds its spot, squares up, hands high.
+        const h = sim.holder();
+        it.mx = 0; it.mz = 0; it.handsUp = true; it.stance = true;
+        if (h) { it.faceX = h.x; it.faceZ = h.z; }
+        continue;
+      }
       if (phase === 'live' && this.avoidLaneViolations(p)) continue;
       switch (phase) {
         case 'tipoff':
