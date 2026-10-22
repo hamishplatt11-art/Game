@@ -138,6 +138,65 @@ const restored = await page.evaluate(() => ({ overlay: !!document.querySelector(
 check('WebGL context loss shows an overlay and recovers', lost.overlay && lost.flag && !restored.overlay && !restored.flag, `${JSON.stringify(lost)} -> ${JSON.stringify(restored)}`);
 await shot('after-restore');
 
+// ---------------------------------------------------------------- user controls in Play Now
+await page.evaluate(() => {
+  const g = window.__app.game;
+  g.paused = false; g.hud.closeOverlay?.();
+  window.__ev = [];
+  const emit = g.sim.emit.bind(g.sim);
+  g.sim.emit = (type, data) => { window.__ev.push(type === 'violationCalled' ? `violation:${data.label}` : type); return emit(type, data); };
+});
+const giveUser = () => page.evaluate(() => {
+  const g = window.__app.game, sim = g.sim;
+  // Wait for a live possession of the user's team, then control the handler.
+  g.fastForward(90, (s) => s.match.phase === 'live' && s.holder() && s.holder().team === s.user.team && !s.holder().inbounding && !s.holder().action);
+  const h = sim.holder();
+  if (h && h.team === sim.user.team) sim.setUserPlayer(h);
+  g.acc = 0;
+  window.__ev = [];
+});
+const evs = () => page.evaluate(() => window.__ev);
+await giveUser();
+await page.keyboard.down('KeyJ');
+await page.waitForTimeout(1500);
+const meterShown = await page.evaluate(() => !document.querySelector('.shot-meter').classList.contains('hidden'));
+await page.keyboard.up('KeyJ');
+await page.waitForTimeout(2500);
+let e = await evs();
+check('J starts a jumper, shows the meter and releases the shot', e.includes('shotStart') && e.includes('shotRelease') && meterShown, `meter ${meterShown}, events ${[...new Set(e)].slice(0, 12).join(',')}`);
+await giveUser();
+await page.keyboard.press('KeyK');
+await page.waitForTimeout(2500);
+e = await evs();
+check('K passes to a teammate', e.includes('passStart') && (e.includes('catch') || e.includes('interception')), [...new Set(e)].slice(0, 12).join(','));
+const before = await page.evaluate(() => { const sim = window.__app.game.sim; const o = sim.teams[1 - sim.user.team].onCourt[0]; sim.match.possTeam = o.team; sim.giveBall(o, 'catch'); return sim.user.player.id; });
+await page.keyboard.press('Tab');
+await page.waitForTimeout(1500);
+const after = await page.evaluate(() => window.__app.game.sim.user.player.id);
+check('Tab switches the controlled defender', after !== before, `${before} -> ${after}`);
+const cam0 = await page.evaluate(() => window.__app.game.camera.mode);
+await page.keyboard.press('KeyM');
+await page.waitForTimeout(1200);
+const cam1 = await page.evaluate(() => window.__app.game.camera.mode);
+check('M cycles the camera', cam0 !== cam1, `${cam0} -> ${cam1}`);
+await page.evaluate(() => window.__app.game.camera.mode = window.__app.settings.data.cameraMode = 'broadcast');
+await page.keyboard.press('Escape');
+await page.waitForTimeout(1500);
+const paused = await page.evaluate(() => ({ p: window.__app.game.paused, menu: !!document.querySelector('.overlay.pause') }));
+await page.click('[data-a="resume"]');
+await page.waitForTimeout(1200);
+const resumed = await page.evaluate(() => !window.__app.game.paused);
+check('Esc pauses with a menu and Resume continues', paused.p && paused.menu && resumed, JSON.stringify({ paused, resumed }));
+await page.keyboard.press('Escape');
+await page.waitForTimeout(1200);
+await page.click('[data-a="quit"]');
+await page.locator('.main-nav').first().waitFor({ timeout: 120000 });
+check('Quit to Main Menu returns to the menu', true);
+await page.evaluate(() => { const t = window.__app.rosters.teams; window.__app.startGame({ mode: 'playnow', teams: [t[0], t[1]], uniforms: ['home', 'away'], userTeam: 0, difficulty: 'pro', quarterMin: 3, seed: 3 }); });
+await page.locator('.pregame').first().waitFor({ timeout: 300000 });
+await page.keyboard.press('Enter');
+await page.waitForTimeout(2000);
+
 // ---------------------------------------------------------------- restart twice (leaks)
 const mem = async () => page.evaluate(async () => {
   if (window.gc) { window.gc(); await new Promise((r) => setTimeout(r, 300)); window.gc(); }
@@ -185,6 +244,38 @@ const bt = await page.evaluate(() => {
 await page.waitForTimeout(3000);
 await shot('blacktop-final');
 check('Blacktop 3v3 plays to 11', bt.phase === 'final' && Math.max(...bt.score) >= 11 && bt.onCourt.every((n) => n === 3), JSON.stringify(bt));
+
+// ---------------------------------------------------------------- practice
+await page.evaluate(() => window.__app.quitToMenu());
+await page.locator('.main-nav').first().waitFor({ timeout: 120000 });
+await page.click('[data-go="practice"]');
+await page.click('[data-def="0"]');
+await page.click('[data-a="start"]');
+await page.waitForFunction(() => window.__app.game && window.__app.game.running && window.__app.game.sim.user.player, null, { timeout: 300000 });
+await page.waitForTimeout(1500);
+const vis = await page.evaluate(() => {
+  const g = window.__app.game, u = g.sim.user.player;
+  return { player: g.views.get(u).root.visible, ball: g.ball.mesh ? g.ball.mesh.visible : true, owner: g.sim.ball.owner === u };
+});
+await page.keyboard.down('KeyJ');
+await page.waitForTimeout(1500);
+const pm = await page.evaluate(() => !document.querySelector('.shot-meter').classList.contains('hidden'));
+await shot('practice-meter');
+await page.keyboard.up('KeyJ');
+await page.waitForTimeout(6000);
+const plog = await page.evaluate(() => window.__app.game.sim.match.practiceLog.length);
+check('Practice: player and ball visible, meter reacts, shot is logged', vis.player && vis.ball && vis.owner && pm && plog >= 1, JSON.stringify({ ...vis, meter: pm, logged: plog }));
+await shot('practice-chart');
+
+// ---------------------------------------------------------------- typing in a field never drives the game
+await page.evaluate(() => window.__app.quitToMenu());
+await page.locator('.main-nav').first().waitFor({ timeout: 120000 });
+await page.click('[data-go="builder"]');
+await page.click('[data-in="first"]', { clickCount: 3 });
+await page.keyboard.type('Wasd');
+const typing = await page.evaluate(() => ({ keys: window.__app.input.keys.size, value: document.querySelector('[data-in="first"]').value }));
+check('typing in a text field does not register game keys', typing.keys === 0 && typing.value === 'Wasd', JSON.stringify(typing));
+await page.click('[data-a="back"]');
 
 // ---------------------------------------------------------------- report
 check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));

@@ -284,7 +284,7 @@ export class AudioSystem {
 
   /** Optional spoken commentary using the browser's speech synthesis (original text). */
   say(text) {
-    if (!this.settings.voice || !window.speechSynthesis) return;
+    if (!this.settings.voice || this.settings.muted || !window.speechSynthesis) return;
     if (window.speechSynthesis.speaking) return;
     const u = new SpeechSynthesisUtterance(text);
     u.rate = 1.12;

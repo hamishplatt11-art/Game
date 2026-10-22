@@ -337,8 +337,21 @@ export class Game {
         case 'score': {
           const home = e.team === 0;
           const big = e.three || e.kind === 'dunk';
-          this.excite = Math.min(1, this.excite + (big ? 0.7 : 0.4) * (home ? 1 : 0.45));
-          this.audio.play(home ? 'cheer' : 'groan', { vol: big ? 1 : 0.6, dur: big ? 3 : 2 });
+          // Crowd reaction scales with context: routine home buckets get
+          // applause, threes/dunks a roar, and clutch / fast-break / lead-
+          // changing plays the biggest response. Away scores mostly groan.
+          const m = this.sim.match;
+          const margin = m.score[0] - m.score[1];
+          const leadChange = home ? margin > 0 && margin - e.pts <= 0 : margin < 0 && margin + e.pts >= 0;
+          const clutch = m.isClutch() && Math.abs(margin) <= 6;
+          const fast = ['rebound', 'steal', 'interception'].includes(m.possStartHow) && this.sim.t - m.possStartT < 6;
+          let lift = e.kind === 'ft' ? 0.1 : big ? 0.55 : 0.3;
+          if (clutch) lift += 0.3;
+          if (fast && e.kind === 'dunk') lift += 0.25;
+          if (leadChange) lift += 0.2;
+          this.excite = Math.min(1, this.excite + lift * (home ? 1 : 0.4));
+          if (e.kind !== 'ft' || clutch) this.audio.play(home ? 'cheer' : 'groan', { vol: Math.min(1, 0.45 + lift * 0.7), dur: big || clutch ? 3 : 1.6 });
+          e.context = { clutch, fast, leadChange };
           this.hud.onScore(e);
           break;
         }
