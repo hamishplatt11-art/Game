@@ -11,7 +11,9 @@
     "test": "vitest run",
     "test:browser": "node tests/browser/journey.mjs",
     "test:browser:all": "node tests/browser/journey.mjs && node tests/browser/practice.mjs && node tests/browser/modelviewer.mjs && node tests/browser/ingame.mjs",
-    "audit": "node tests/audit.mjs 12 4"
+    "audit": "node tests/audit.mjs 12 4",
+    "play": "node play.mjs",
+    "prebuild:refresh": "vite build && rm -rf prebuilt && cp -r dist prebuilt"
   },
   "dependencies": {
     "three": "^0.180.0"

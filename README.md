@@ -14,6 +14,21 @@ uses original code and assets and a fictional league.
 > legitimately sourced character models. See [Missing features](#missing-features),
 > [docs/UPGRADE_REPORT.md](docs/UPGRADE_REPORT.md) and [docs/ASSETS.md](docs/ASSETS.md).
 
+## Quickest way to play (no `npm install`)
+
+The repository includes a ready-built copy of the game in `prebuilt/`, plus a
+small launcher that needs nothing but Node.js:
+
+```bash
+cd Hardwood27
+node play.mjs            # opens http://localhost:8080 in your browser
+```
+
+Use this if `npm install` is blocked (for example, by a certificate error
+on your network). Tests and the dev server still need `npm install`.
+Maintainers: refresh `prebuilt/` after changing the code with
+`npm run prebuild:refresh`.
+
 ## Run it on a Mac
 
 Requirements: macOS 12+, [Node.js 18 or newer](https://nodejs.org/) (the LTS
